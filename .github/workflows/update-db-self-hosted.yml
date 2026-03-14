@@ -48,9 +48,12 @@ jobs:
       has_cases: ${{ steps.filter.outputs.has_cases }}
     steps:
       - name: Check out repository
-        uses: ./.github/actions/ci-checkout-main
+        uses: actions/checkout@v4
         with:
-          ssh_key: ${{ secrets.DEPLOY_KEY }}
+          ref: main
+          fetch-depth: 0
+          lfs: true
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
 
       - name: Filter cases to run
         id: filter
@@ -69,9 +72,12 @@ jobs:
     timeout-minutes: 1440  # 24 hours
     steps:
       - name: Check out repository
-        uses: ./.github/actions/ci-checkout-main
+        uses: actions/checkout@v4
         with:
-          ssh_key: ${{ secrets.DEPLOY_KEY }}
+          ref: main
+          fetch-depth: 0
+          lfs: true
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
 
       - name: Install stellcoilbench
         uses: ./.github/actions/conda-activate
@@ -114,9 +120,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Check out repository
-        uses: ./.github/actions/ci-checkout-main
+        uses: actions/checkout@v4
         with:
-          ssh_key: ${{ secrets.DEPLOY_KEY }}
+          ref: main
+          fetch-depth: 0
+          lfs: true
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
 
       - name: Pull latest changes
         run: bash tools/ci_pull.sh --no-rebase
@@ -149,9 +158,12 @@ jobs:
       has_pending: ${{ steps.pending.outputs.has_pending }}
     steps:
       - name: Check out repository
-        uses: ./.github/actions/ci-checkout-main
+        uses: actions/checkout@v4
         with:
-          ssh_key: ${{ secrets.DEPLOY_KEY }}
+          ref: main
+          fetch-depth: 0
+          lfs: true
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
 
       - name: Check for pending cases
         id: pending
@@ -198,9 +210,12 @@ jobs:
     runs-on: [macOS]
     steps:
       - name: Check out repository
-        uses: ./.github/actions/ci-checkout-main
+        uses: actions/checkout@v4
         with:
-          ssh_key: ${{ secrets.DEPLOY_KEY }}
+          ref: main
+          fetch-depth: 0
+          lfs: true
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
 
       - name: Pull latest (after autopilot run)
         run: bash tools/ci_pull.sh --no-rebase
