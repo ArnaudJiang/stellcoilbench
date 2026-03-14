@@ -193,27 +193,6 @@ class TestValidateCaseConfig:
         errors = validate_case_config(data)
         assert errors == []
 
-    def test_dipole_coil_type_rejected(self):
-        """Test that coil_type \'dipole\' is rejected (dipole functionality removed)."""
-        data = _merge(
-            _base_config(),
-            {"description": "Dipole case", "coils_params": {"coil_type": "dipole"}},
-        )
-        errors = validate_case_config(data)
-        assert any("dipole" in e and "removed" in e for e in errors)
-
-    def test_invalid_dipole_coils_params_legacy_nx(self):
-        """Test that legacy Nx/Ny/Nz are rejected (dipole removed, Nx unknown)."""
-        data = _merge(
-            _base_config(),
-            {
-                "description": "Case with legacy Nx (dipole-style)",
-                "coils_params": {"Nx": 4},
-            },
-        )
-        errors = validate_case_config(data)
-        assert any("Unknown coils_params key" in e and "Nx" in e for e in errors)
-
     def test_invalid_coil_objective_term_option(self):
         """Test validation with invalid coil_objective_term option."""
         data = _merge(

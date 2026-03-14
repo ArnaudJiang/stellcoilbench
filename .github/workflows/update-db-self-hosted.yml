@@ -49,9 +49,9 @@ jobs:
     steps:
       - name: Install Git LFS
         run: |
-          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          command -v git-lfs &>/dev/null || brew install git-lfs
-          git lfs install
+          "${{ env.CONDA_ROOT }}/bin/conda" install -y -n ${{ env.CONDA_ENV }} -c conda-forge git-lfs
+          echo "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin" >> $GITHUB_PATH
+          "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin/git-lfs" install
 
       - name: Check out repository
         uses: actions/checkout@v4
@@ -79,9 +79,9 @@ jobs:
     steps:
       - name: Install Git LFS
         run: |
-          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          command -v git-lfs &>/dev/null || brew install git-lfs
-          git lfs install
+          "${{ env.CONDA_ROOT }}/bin/conda" install -y -n ${{ env.CONDA_ENV }} -c conda-forge git-lfs
+          echo "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin" >> $GITHUB_PATH
+          "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin/git-lfs" install
 
       - name: Check out repository
         uses: actions/checkout@v4
@@ -133,9 +133,9 @@ jobs:
     steps:
       - name: Install Git LFS
         run: |
-          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          command -v git-lfs &>/dev/null || brew install git-lfs
-          git lfs install
+          "${{ env.CONDA_ROOT }}/bin/conda" install -y -n ${{ env.CONDA_ENV }} -c conda-forge git-lfs
+          echo "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin" >> $GITHUB_PATH
+          "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin/git-lfs" install
 
       - name: Check out repository
         uses: actions/checkout@v4
@@ -177,9 +177,9 @@ jobs:
     steps:
       - name: Install Git LFS
         run: |
-          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          command -v git-lfs &>/dev/null || brew install git-lfs
-          git lfs install
+          "${{ env.CONDA_ROOT }}/bin/conda" install -y -n ${{ env.CONDA_ENV }} -c conda-forge git-lfs
+          echo "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin" >> $GITHUB_PATH
+          "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin/git-lfs" install
 
       - name: Check out repository
         uses: actions/checkout@v4
@@ -235,9 +235,9 @@ jobs:
     steps:
       - name: Install Git LFS
         run: |
-          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          command -v git-lfs &>/dev/null || brew install git-lfs
-          git lfs install
+          "${{ env.CONDA_ROOT }}/bin/conda" install -y -n ${{ env.CONDA_ENV }} -c conda-forge git-lfs
+          echo "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin" >> $GITHUB_PATH
+          "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin/git-lfs" install
 
       - name: Check out repository
         uses: actions/checkout@v4
