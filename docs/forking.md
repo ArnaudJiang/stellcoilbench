@@ -30,6 +30,10 @@ cd stellcoilbench
 
 Use this when you only need source code, tests, or cases — not submission data.
 
+### Verifying LFS (post-migration)
+
+After cloning, confirm LFS objects are present: `git lfs fsck` (no missing/deleted) and `git lfs ls-files | head` (shows tracked files). CI needs `LFS_DEPLOY_KEY` in stellcoilbench repo secrets for runs that add submissions.
+
 ## Adding Submissions to Your Fork
 
 By default, your fork's `.lfsconfig` points to the upstream LFS repo. **You cannot push to it** (no write access). To add your own submissions from your fork:
