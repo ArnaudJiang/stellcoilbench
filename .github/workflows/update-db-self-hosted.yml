@@ -120,9 +120,7 @@ jobs:
         run: |
           LOG_DIR=/tmp/stellcoilbench_logs
           echo "=== LOG FILES ($LOG_DIR) ==="
-          for f in "$LOG_DIR"/*.log 2>/dev/null; do
-            [ -f "$f" ] && echo "=== $f ===" && cat "$f"
-          done
+          for f in "$LOG_DIR"/*.log; do [ -f "$f" ] && echo "=== $f ===" && cat "$f"; done
 
       - name: Setup LFS SSH
         env:
@@ -225,9 +223,7 @@ jobs:
         run: |
           LOG_DIR=/tmp/autopilot_logs
           echo "=== LOG FILES ($LOG_DIR) ==="
-          for f in "$LOG_DIR"/*.log 2>/dev/null; do
-            [ -f "$f" ] && echo "=== $f ===" && cat "$f"
-          done
+          for f in "$LOG_DIR"/*.log; do [ -f "$f" ] && echo "=== $f ===" && cat "$f"; done
 
       - name: Setup LFS SSH
         env:
