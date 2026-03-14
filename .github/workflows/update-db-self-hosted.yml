@@ -53,8 +53,8 @@ jobs:
           CONDA_ROOT: ${{ env.CONDA_ROOT }}
           CONDA_ENV: ${{ env.CONDA_ENV }}
         run: |
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_install_git_lfs.sh" | bash
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_setup_lfs_ssh.sh" | bash
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_install_git_lfs.sh" | bash
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_setup_lfs_ssh.sh" | bash
 
       - name: Check out repository
         uses: actions/checkout@v4
@@ -86,8 +86,8 @@ jobs:
           CONDA_ROOT: ${{ env.CONDA_ROOT }}
           CONDA_ENV: ${{ env.CONDA_ENV }}
         run: |
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_install_git_lfs.sh" | bash
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_setup_lfs_ssh.sh" | bash
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_install_git_lfs.sh" | bash
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_setup_lfs_ssh.sh" | bash
 
       - name: Check out repository
         uses: actions/checkout@v4
@@ -148,8 +148,8 @@ jobs:
           CONDA_ROOT: ${{ env.CONDA_ROOT }}
           CONDA_ENV: ${{ env.CONDA_ENV }}
         run: |
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_install_git_lfs.sh" | bash
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_setup_lfs_ssh.sh" | bash
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_install_git_lfs.sh" | bash
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_setup_lfs_ssh.sh" | bash
 
       - name: Check out repository
         uses: actions/checkout@v4
@@ -195,8 +195,8 @@ jobs:
           CONDA_ROOT: ${{ env.CONDA_ROOT }}
           CONDA_ENV: ${{ env.CONDA_ENV }}
         run: |
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_install_git_lfs.sh" | bash
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_setup_lfs_ssh.sh" | bash
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_install_git_lfs.sh" | bash
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_setup_lfs_ssh.sh" | bash
 
       - name: Check out repository
         uses: actions/checkout@v4
@@ -262,8 +262,8 @@ jobs:
           CONDA_ROOT: ${{ env.CONDA_ROOT }}
           CONDA_ENV: ${{ env.CONDA_ENV }}
         run: |
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_install_git_lfs.sh" | bash
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_setup_lfs_ssh.sh" | bash
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_install_git_lfs.sh" | bash
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_setup_lfs_ssh.sh" | bash
 
       - name: Check out repository
         uses: actions/checkout@v4
