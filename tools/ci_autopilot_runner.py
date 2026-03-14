@@ -6,6 +6,14 @@ Launches stellcoilbench run-ci-case for each pending case, enforces per-case
 timeouts, polls for progress, and prints log summaries. Writes status to
 /tmp/autopilot_logs/_status.txt: [OK] case_id, [FAIL] case_id, [TIMEOUT] case_id.
 
+Constants are overridable via environment variables:
+  STELLCOILBENCH_AUTOPILOT_LOG_DIR
+  STELLCOILBENCH_AUTOPILOT_PENDING_DIR
+  STELLCOILBENCH_AUTOPILOT_DONE_DIR
+  STELLCOILBENCH_AUTOPILOT_MAX_CASES
+  STELLCOILBENCH_AUTOPILOT_POLL_INTERVAL
+  STELLCOILBENCH_AUTOPILOT_DEFAULT_TIMEOUT_MIN
+
 Usage:
   python -m tools.ci_autopilot_runner
 
@@ -16,22 +24,26 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-LOG_DIR = Path("/tmp/autopilot_logs")
-PENDING_DIR = Path("cases/pending")
-DONE_DIR = Path("cases/done")
+LOG_DIR = Path(os.environ.get("STELLCOILBENCH_AUTOPILOT_LOG_DIR", "/tmp/autopilot_logs"))
+PENDING_DIR = Path(
+    os.environ.get("STELLCOILBENCH_AUTOPILOT_PENDING_DIR", "cases/pending")
+)
+DONE_DIR = Path(os.environ.get("STELLCOILBENCH_AUTOPILOT_DONE_DIR", "cases/done"))
+MAX_CASES = int(os.environ.get("STELLCOILBENCH_AUTOPILOT_MAX_CASES", "10"))
+POLL_INTERVAL = int(os.environ.get("STELLCOILBENCH_AUTOPILOT_POLL_INTERVAL", "60"))
+DEFAULT_TIMEOUT_MIN = int(
+    os.environ.get("STELLCOILBENCH_AUTOPILOT_DEFAULT_TIMEOUT_MIN", "60")
+)
 STATUS_FILE = LOG_DIR / "_status.txt"
-MAX_CASES = 10
-POLL_INTERVAL = 60
-DEFAULT_TIMEOUT_MIN = 60
 
 
 def _timeout_min(case_path: Path) -> int:
+    """Extract timeout_minutes from case JSON resource section, or use default."""
     try:
         d = json.loads(case_path.read_text())
         return int(d.get("resource", {}).get("timeout_minutes", DEFAULT_TIMEOUT_MIN))
@@ -40,6 +52,7 @@ def _timeout_min(case_path: Path) -> int:
 
 
 def _summary(case_id: str) -> str:
+    """Build a one-line summary from the case's summary.json, or a placeholder if missing."""
     p = DONE_DIR / case_id / "summary.json"
     if not p.exists():
         return "(no summary.json)"
@@ -53,23 +66,24 @@ def _summary(case_id: str) -> str:
 
 
 def _launch(case_path: Path, log_path: Path) -> subprocess.Popen:
+    """Launch stellcoilbench run-ci-case via python -m for reliable env resolution."""
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
     env["STELLCOILBENCH_CI_VERBOSE_STDOUT"] = "1"
-    cmd = shutil.which("stellcoilbench") or str(
-        Path(sys.executable).parent / ("stellcoilbench.exe" if sys.platform == "win32" else "stellcoilbench")
-    )
+    cmd = [
+        sys.executable,
+        "-m",
+        "stellcoilbench.cli",
+        "run-ci-case",
+        str(case_path),
+        "--output-dir",
+        str(DONE_DIR),
+        "--policy",
+        "policy/proposer_policy.yaml",
+    ]
     with open(log_path, "w") as f:
         return subprocess.Popen(
-            [
-                cmd,
-                "run-ci-case",
-                str(case_path),
-                "--output-dir",
-                str(DONE_DIR),
-                "--policy",
-                "policy/proposer_policy.yaml",
-            ],
+            cmd,
             env=env,
             stdout=f,
             stderr=subprocess.STDOUT,
@@ -77,11 +91,13 @@ def _launch(case_path: Path, log_path: Path) -> subprocess.Popen:
 
 
 def _status_append(status: str, case_id: str, extra: str = "") -> None:
+    """Append a status line (e.g. [OK] or [FAIL]) to the status file."""
     with open(STATUS_FILE, "a", encoding="utf-8") as f:
         f.write(f"[{status}]  {case_id}{' ' + extra if extra else ''}\n")
 
 
 def _dump_log(log_path: Path, tail: int | None = None) -> None:
+    """Print log file contents; if tail is set, only the last tail lines."""
     if not log_path.exists():
         print("(no log)")
         return
@@ -91,6 +107,7 @@ def _dump_log(log_path: Path, tail: int | None = None) -> None:
 
 
 def main() -> int:
+    """Run pending autopilot cases in parallel, enforce timeouts, and print status."""
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     # Clear old logs from previous runs so "Show logs on failure" only shows current run.
     for old_log in LOG_DIR.glob("*.log"):

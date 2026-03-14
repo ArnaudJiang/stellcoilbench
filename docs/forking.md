@@ -34,6 +34,10 @@ Use this when you only need source code, tests, or cases — not submission data
 
 After cloning, confirm LFS objects are present: `git lfs fsck` (no missing/deleted) and `git lfs ls-files | head` (shows tracked files). CI needs `LFS_DEPLOY_KEY` in stellcoilbench repo secrets for runs that add submissions.
 
+### Upstream CI and unrecoverable LFS objects
+
+Upstream CI sets `GIT_LFS_SKIP_SMUDGE=1` so that LFS objects are never fetched during checkout. This workaround exists because many LFS OIDs in the history are unrecoverable (404) and would cause `git lfs pull` to fail. CI jobs do not need the blob content: leaderboard generation reads `results.json` and `.zip` files (not LFS), and benchmark/autopilot jobs only create new output. LFS push still works when committing new submissions.
+
 ## Adding Submissions to Your Fork
 
 By default, your fork's `.lfsconfig` points to the upstream LFS repo. **You cannot push to it** (no write access). To add your own submissions from your fork:
@@ -66,6 +70,7 @@ By default, your fork's `.lfsconfig` points to the upstream LFS repo. **You cann
 ## Fork CI
 
 - **Without submissions:** Use `GIT_LFS_SKIP_SMUDGE=1` or sparse checkout excluding `submissions/`.
+- **Upstream CI:** Uses `GIT_LFS_SKIP_SMUDGE=1` because many historic LFS objects are unrecoverable (404). CI-critical paths (`results.json`, `.zip`) are not LFS, so jobs run correctly with pointer files. LFS push for new submissions still works via deploy key + stellcoilbench-lfs.
 - **With submissions:** Pull LFS (`git lfs pull`) and use your own LFS backend (Option A or B above) so you do not hit upstream's quota.
 
 ## Contributing to Upstream

@@ -1,0 +1,18 @@
+# Composite action: Setup LFS SSH for git push (stellcoilbench-lfs).
+# Run before git push that may include LFS content.
+#
+# Requires env: LFS_DEPLOY_KEY (from secrets)
+# Expects: repo checked out (runs tools/ci_setup_lfs_ssh.sh)
+#
+# Usage:
+#   - uses: ./.github/actions/ci-lfs-ssh
+#     env:
+#       LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+name: CI LFS SSH setup
+description: Configure SSH for Git LFS push to stellcoilbench-lfs
+runs:
+  using: composite
+  steps:
+    - name: Setup LFS SSH
+      shell: bash
+      run: bash tools/ci_setup_lfs_ssh.sh

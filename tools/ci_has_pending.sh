@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 # Check for pending autopilot cases. Writes has_pending to GITHUB_OUTPUT.
 # Called from update-db-self-hosted workflow.
+# Respects PAUSE_AUTORUN: if present, treats as no pending (halts the loop).
 set -euo pipefail
+
+if [ -f "PAUSE_AUTORUN" ]; then
+  echo "PAUSE_AUTORUN exists; skipping autopilot."
+  [ -n "${GITHUB_OUTPUT:-}" ] && echo "has_pending=false" >> "$GITHUB_OUTPUT"
+  exit 0
+fi
 
 shopt -s nullglob
 files=(cases/pending/*.json)

@@ -26,17 +26,23 @@ log() { echo "[$(date +%Y-%m-%d\ %H:%M:%S)] [$CASE_NAME] $1" | tee -a "$LOG_FILE
 
 log "Starting..."
 
-# Source conda (supports miniconda3, anaconda3, Homebrew, and common install locations)
+# Source conda (CONDA_ROOT first for self-hosted; then common paths)
 CONDA_FOUND=
-for p in "$HOME/miniconda3" "$HOME/anaconda3" "$HOME/opt/miniconda3" "$HOME/opt/anaconda3" \
-          "/opt/homebrew/Caskroom/miniconda/base" "/opt/homebrew/Caskroom/anaconda/base" \
-          "/usr/local/miniconda3" "/usr/local/anaconda3"; do
-  if [ -f "$p/etc/profile.d/conda.sh" ]; then
-    source "$p/etc/profile.d/conda.sh"
-    CONDA_FOUND=1
-    break
-  fi
-done
+if [ -n "${CONDA_ROOT:-}" ] && [ -f "${CONDA_ROOT}/etc/profile.d/conda.sh" ]; then
+  source "${CONDA_ROOT}/etc/profile.d/conda.sh"
+  CONDA_FOUND=1
+fi
+if [ -z "$CONDA_FOUND" ]; then
+  for p in "$HOME/miniconda3" "$HOME/anaconda3" "$HOME/opt/miniconda3" "$HOME/opt/anaconda3" \
+            "/opt/homebrew/Caskroom/miniconda/base" "/opt/homebrew/Caskroom/anaconda/base" \
+            "/usr/local/miniconda3" "/usr/local/anaconda3"; do
+    if [ -f "$p/etc/profile.d/conda.sh" ]; then
+      source "$p/etc/profile.d/conda.sh"
+      CONDA_FOUND=1
+      break
+    fi
+  done
+fi
 [ -z "$CONDA_FOUND" ] && command -v conda >/dev/null 2>&1 && eval "$(conda shell.bash hook)"
 conda activate "$CONDA_ENV" || { log "ERROR: conda failed"; exit 1; }
 
@@ -46,7 +52,7 @@ export MPLBACKEND=Agg PYTHONUNBUFFERED=1
 cd "$WORKSPACE"
 log "Running stellcoilbench..."
 
-stellcoilbench submit-case "$CASE_FILE" 2>&1 | tee -a "$LOG_FILE"
+python -m stellcoilbench.cli submit-case "$CASE_FILE" 2>&1 | tee -a "$LOG_FILE"
 EXIT_CODE=${PIPESTATUS[0]}
 
 if [ $EXIT_CODE -eq 0 ]; then

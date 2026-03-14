@@ -39,6 +39,7 @@ permissions:
   contents: write
 
 env:
+  GIT_LFS_SKIP_SMUDGE: "1"
   SLURM_CPUS: "8"
   SLURM_MEM: "10000M"
   SLURM_TIME_CASES: "00:30:00"

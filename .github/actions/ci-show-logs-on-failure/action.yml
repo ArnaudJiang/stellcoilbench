@@ -1,0 +1,23 @@
+# Composite action: Dump log files on job failure for debugging.
+# Use with if: failure() so it runs only when a prior step failed.
+#
+# Usage:
+#   - uses: ./.github/actions/ci-show-logs-on-failure
+#     if: failure()
+#     with:
+#       log_dir: /tmp/autopilot_logs
+name: CI show logs on failure
+description: Dump .log files from a directory when the job has failed
+inputs:
+  log_dir:
+    description: Directory containing .log files to display (e.g. /tmp/autopilot_logs)
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Show logs on failure
+      shell: bash
+      run: |
+        LOG_DIR="${{ inputs.log_dir }}"
+        echo "=== LOG FILES ($LOG_DIR) ==="
+        for f in "$LOG_DIR"/*.log; do [ -f "$f" ] && echo "=== $f ===" && cat "$f"; done

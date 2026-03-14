@@ -4,7 +4,13 @@
 #
 # Expects: conda env activated, stellcoilbench installed, SIMPLE_EXECUTABLE (optional)
 # Writes ran_cases to GITHUB_OUTPUT if GITHUB_OUTPUT is set.
+# Respects PAUSE_AUTORUN: if present, exits without running (halts the autopilot loop).
 set -euo pipefail
+
+if [ -f "PAUSE_AUTORUN" ]; then
+  echo "PAUSE_AUTORUN present; skipping autopilot batch."
+  exit 0
+fi
 
 export PYTHONUNBUFFERED=1
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1

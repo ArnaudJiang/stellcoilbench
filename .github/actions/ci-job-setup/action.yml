@@ -1,0 +1,38 @@
+# Composite action: Install Git LFS and check out the repo.
+# LFS SSH (for push) is configured separately by ci-lfs-ssh before commits.
+#
+# Requires job env: CONDA_ROOT, CONDA_ENV
+# Requires input: deploy_key for checkout (secrets.DEPLOY_KEY)
+#
+# Usage:
+#   - uses: ./.github/actions/ci-job-setup
+#     env:
+#       LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+#     with:
+#       deploy_key: ${{ secrets.DEPLOY_KEY }}
+name: CI job setup (LFS + checkout)
+description: Install Git LFS, setup LFS SSH, and check out repository
+inputs:
+  deploy_key:
+    description: SSH deploy key for checkout (secrets.DEPLOY_KEY)
+    required: true
+  ref:
+    description: Branch or ref to check out
+    required: false
+    default: main
+runs:
+  using: composite
+  steps:
+    - name: Install Git LFS and setup SSH (before checkout)
+      shell: bash
+      run: |
+        curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_install_git_lfs.sh" | bash
+        curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_setup_lfs_ssh.sh" | bash
+
+    - name: Check out repository
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
+        fetch-depth: 0
+        lfs: false
+        ssh-key: ${{ inputs.deploy_key }}

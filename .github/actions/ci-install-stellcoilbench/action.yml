@@ -1,0 +1,22 @@
+# Composite action: Install stellcoilbench (pip -e) and verify import.
+# Wraps conda-activate + pip install + reactor_scale import check.
+#
+# Usage:
+#   - uses: ./.github/actions/ci-install-stellcoilbench
+#     with:
+#       env: ${{ env.CONDA_ENV }}
+name: CI install StellCoilBench
+description: Install stellcoilbench in editable mode and verify
+inputs:
+  env:
+    description: Conda environment name to activate
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/conda-activate
+      with:
+        env: ${{ inputs.env }}
+        run: |
+          pip install -e . --no-cache-dir
+          python -c "import stellcoilbench.reactor_scale; print('stellcoilbench install OK')"

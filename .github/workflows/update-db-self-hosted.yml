@@ -34,6 +34,7 @@ env:
   CONDA_ENV: stellcoilbench_ci
   CONDA_ROOT: /Users/akaptanoglu/anaconda3  # for self-hosted Mac runner; adjust if conda lives elsewhere
   SIMPLE_EXECUTABLE: /Users/akaptanoglu/simple/build/simple.x
+  GIT_LFS_SKIP_SMUDGE: "1"
 
 jobs:
   # ---- Standard benchmark path (only on push to main) ----
@@ -47,34 +48,11 @@ jobs:
       cases_to_run_json: ${{ steps.filter.outputs.cases_to_run_json }}
       has_cases: ${{ steps.filter.outputs.has_cases }}
     steps:
-      - name: Install Git LFS and setup SSH (before checkout)
+      - uses: ./.github/actions/ci-job-setup
         env:
           LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
-          CONDA_ROOT: ${{ env.CONDA_ROOT }}
-          CONDA_ENV: ${{ env.CONDA_ENV }}
-        run: |
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_install_git_lfs.sh" | bash
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_setup_lfs_ssh.sh" | bash
-
-      - name: Debug LFS setup (remove after fixing)
-        if: always()
-        env:
-          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
-        run: |
-          echo "HOME=$HOME"
-          echo "TMPDIR=$TMPDIR"
-          echo "LFS_DEPLOY_KEY set: $([ -n \"${LFS_DEPLOY_KEY:-}\" ] && echo yes || echo no)"
-          echo "LFS_DEPLOY_KEY length: ${#LFS_DEPLOY_KEY}"
-          ls -la "${TMPDIR:-/tmp}"/lfs_deploy_key 2>/dev/null || echo "Key file not found"
-          grep -A4 'Host github-lfs' "$HOME/.ssh/config" 2>/dev/null || echo "github-lfs not in config"
-
-      - name: Check out repository
-        uses: actions/checkout@v4
         with:
-          ref: main
-          fetch-depth: 0
-          lfs: true
-          ssh-key: ${{ secrets.DEPLOY_KEY }}
+          deploy_key: ${{ secrets.DEPLOY_KEY }}
 
       - name: Filter cases to run
         id: filter
@@ -92,30 +70,18 @@ jobs:
     runs-on: [macOS]
     timeout-minutes: 1440  # 24 hours
     steps:
-      - name: Install Git LFS and setup SSH (before checkout)
+      - uses: ./.github/actions/ci-job-setup
         env:
           LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
-          CONDA_ROOT: ${{ env.CONDA_ROOT }}
-          CONDA_ENV: ${{ env.CONDA_ENV }}
-        run: |
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_install_git_lfs.sh" | bash
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_setup_lfs_ssh.sh" | bash
-
-      - name: Check out repository
-        uses: actions/checkout@v4
         with:
-          ref: main
-          fetch-depth: 0
-          lfs: true
-          ssh-key: ${{ secrets.DEPLOY_KEY }}
+          deploy_key: ${{ secrets.DEPLOY_KEY }}
 
-      - name: Install stellcoilbench
-        uses: ./.github/actions/conda-activate
+      - uses: ./.github/actions/ci-install-stellcoilbench
         with:
           env: ${{ env.CONDA_ENV }}
-          run: |
-            pip install -e . --no-cache-dir
-            python -c "import stellcoilbench.reactor_scale; print('stellcoilbench install OK')"
+
+      - name: Clear previous benchmark logs
+        run: rm -rf /tmp/stellcoilbench_logs && mkdir -p /tmp/stellcoilbench_logs
 
       - name: Run all cases in parallel
         uses: ./.github/actions/conda-activate
@@ -127,17 +93,14 @@ jobs:
           env: ${{ env.CONDA_ENV }}
           run: bash tools/ci_run_benchmark_parallel.sh
 
-      - name: Show all logs on failure
+      - uses: ./.github/actions/ci-show-logs-on-failure
         if: failure()
-        run: |
-          LOG_DIR=/tmp/stellcoilbench_logs
-          echo "=== LOG FILES ($LOG_DIR) ==="
-          for f in "$LOG_DIR"/*.log; do [ -f "$f" ] && echo "=== $f ===" && cat "$f"; done
+        with:
+          log_dir: /tmp/stellcoilbench_logs
 
-      - name: Setup LFS SSH
+      - uses: ./.github/actions/ci-lfs-ssh
         env:
           LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
-        run: bash tools/ci_setup_lfs_ssh.sh
 
       - name: Commit all submissions
         if: always()
@@ -152,22 +115,11 @@ jobs:
     runs-on: [macOS]
     timeout-minutes: 10
     steps:
-      - name: Install Git LFS and setup SSH (before checkout)
+      - uses: ./.github/actions/ci-job-setup
         env:
           LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
-          CONDA_ROOT: ${{ env.CONDA_ROOT }}
-          CONDA_ENV: ${{ env.CONDA_ENV }}
-        run: |
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_install_git_lfs.sh" | bash
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_setup_lfs_ssh.sh" | bash
-
-      - name: Check out repository
-        uses: actions/checkout@v4
         with:
-          ref: main
-          fetch-depth: 0
-          lfs: true
-          ssh-key: ${{ secrets.DEPLOY_KEY }}
+          deploy_key: ${{ secrets.DEPLOY_KEY }}
 
       - name: Pull latest changes
         run: bash tools/ci_pull.sh --no-rebase
@@ -180,10 +132,9 @@ jobs:
             echo "=== Generating leaderboard ==="
             stellcoilbench update-db
 
-      - name: Setup LFS SSH
+      - uses: ./.github/actions/ci-lfs-ssh
         env:
           LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
-        run: bash tools/ci_setup_lfs_ssh.sh
 
       - name: Commit leaderboard
         run: bash tools/ci_commit_leaderboard.sh
@@ -199,26 +150,18 @@ jobs:
       ran_cases: ${{ steps.run.outputs.ran_cases }}
       has_pending: ${{ steps.pending.outputs.has_pending }}
     steps:
-      - name: Install Git LFS and setup SSH (before checkout)
+      - uses: ./.github/actions/ci-job-setup
         env:
           LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
-          CONDA_ROOT: ${{ env.CONDA_ROOT }}
-          CONDA_ENV: ${{ env.CONDA_ENV }}
-        run: |
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_install_git_lfs.sh" | bash
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_setup_lfs_ssh.sh" | bash
-
-      - name: Check out repository
-        uses: actions/checkout@v4
         with:
-          ref: main
-          fetch-depth: 0
-          lfs: true
-          ssh-key: ${{ secrets.DEPLOY_KEY }}
+          deploy_key: ${{ secrets.DEPLOY_KEY }}
 
       - name: Check for pending cases
         id: pending
         run: bash tools/ci_has_pending.sh
+
+      - name: Clear previous autopilot logs
+        run: rm -rf /tmp/autopilot_logs && mkdir -p /tmp/autopilot_logs
 
       - name: Run autopilot cases
         id: run
@@ -230,17 +173,14 @@ jobs:
           env: ${{ env.CONDA_ENV }}
           run: bash tools/ci_autopilot_batch.sh
 
-      - name: Show autopilot logs on failure
+      - uses: ./.github/actions/ci-show-logs-on-failure
         if: failure()
-        run: |
-          LOG_DIR=/tmp/autopilot_logs
-          echo "=== LOG FILES ($LOG_DIR) ==="
-          for f in "$LOG_DIR"/*.log; do [ -f "$f" ] && echo "=== $f ===" && cat "$f"; done
+        with:
+          log_dir: /tmp/autopilot_logs
 
-      - name: Setup LFS SSH
+      - uses: ./.github/actions/ci-lfs-ssh
         env:
           LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
-        run: bash tools/ci_setup_lfs_ssh.sh
 
       - name: Commit autopilot results and update leaderboard
         if: always() && steps.pending.outputs.has_pending == 'true'
@@ -264,31 +204,18 @@ jobs:
       needs.run_autopilot_cases.result == 'success'
     runs-on: [macOS]
     steps:
-      - name: Install Git LFS and setup SSH (before checkout)
+      - uses: ./.github/actions/ci-job-setup
         env:
           LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
-          CONDA_ROOT: ${{ env.CONDA_ROOT }}
-          CONDA_ENV: ${{ env.CONDA_ENV }}
-        run: |
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_install_git_lfs.sh" | bash
-          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_setup_lfs_ssh.sh" | bash
-
-      - name: Check out repository
-        uses: actions/checkout@v4
         with:
-          ref: main
-          fetch-depth: 0
-          lfs: true
-          ssh-key: ${{ secrets.DEPLOY_KEY }}
+          deploy_key: ${{ secrets.DEPLOY_KEY }}
 
       - name: Pull latest (after autopilot run)
         run: bash tools/ci_pull.sh --no-rebase
 
-      - name: Install stellcoilbench
-        uses: ./.github/actions/conda-activate
+      - uses: ./.github/actions/ci-install-stellcoilbench
         with:
           env: ${{ env.CONDA_ENV }}
-          run: pip install -e . --no-cache-dir
 
       - name: Propose batch
         uses: ./.github/actions/conda-activate
@@ -301,10 +228,9 @@ jobs:
           env: ${{ env.CONDA_ENV }}
           run: bash tools/ci_propose_batch_wrapper.sh
 
-      - name: Setup LFS SSH
+      - uses: ./.github/actions/ci-lfs-ssh
         env:
           LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
-        run: bash tools/ci_setup_lfs_ssh.sh
 
       - name: Commit proposed cases
         run: bash tools/ci_commit_proposed_cases.sh
