@@ -47,11 +47,14 @@ jobs:
       cases_to_run_json: ${{ steps.filter.outputs.cases_to_run_json }}
       has_cases: ${{ steps.filter.outputs.has_cases }}
     steps:
-      - name: Install Git LFS
+      - name: Install Git LFS and setup SSH (before checkout)
+        env:
+          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+          CONDA_ROOT: ${{ env.CONDA_ROOT }}
+          CONDA_ENV: ${{ env.CONDA_ENV }}
         run: |
-          "${{ env.CONDA_ROOT }}/bin/conda" install -y -n ${{ env.CONDA_ENV }} -c conda-forge git-lfs
-          echo "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin" >> $GITHUB_PATH
-          "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin/git-lfs" install
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_install_git_lfs.sh" | bash
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_setup_lfs_ssh.sh" | bash
 
       - name: Check out repository
         uses: actions/checkout@v4
@@ -77,11 +80,14 @@ jobs:
     runs-on: [macOS]
     timeout-minutes: 1440  # 24 hours
     steps:
-      - name: Install Git LFS
+      - name: Install Git LFS and setup SSH (before checkout)
+        env:
+          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+          CONDA_ROOT: ${{ env.CONDA_ROOT }}
+          CONDA_ENV: ${{ env.CONDA_ENV }}
         run: |
-          "${{ env.CONDA_ROOT }}/bin/conda" install -y -n ${{ env.CONDA_ENV }} -c conda-forge git-lfs
-          echo "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin" >> $GITHUB_PATH
-          "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin/git-lfs" install
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_install_git_lfs.sh" | bash
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_setup_lfs_ssh.sh" | bash
 
       - name: Check out repository
         uses: actions/checkout@v4
@@ -111,7 +117,12 @@ jobs:
 
       - name: Show all logs on failure
         if: failure()
-        run: bash tools/ci_show_logs.sh /tmp/stellcoilbench_logs
+        run: |
+          LOG_DIR=/tmp/stellcoilbench_logs
+          echo "=== LOG FILES ($LOG_DIR) ==="
+          for f in "$LOG_DIR"/*.log 2>/dev/null; do
+            [ -f "$f" ] && echo "=== $f ===" && cat "$f"
+          done
 
       - name: Setup LFS SSH
         env:
@@ -131,11 +142,14 @@ jobs:
     runs-on: [macOS]
     timeout-minutes: 10
     steps:
-      - name: Install Git LFS
+      - name: Install Git LFS and setup SSH (before checkout)
+        env:
+          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+          CONDA_ROOT: ${{ env.CONDA_ROOT }}
+          CONDA_ENV: ${{ env.CONDA_ENV }}
         run: |
-          "${{ env.CONDA_ROOT }}/bin/conda" install -y -n ${{ env.CONDA_ENV }} -c conda-forge git-lfs
-          echo "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin" >> $GITHUB_PATH
-          "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin/git-lfs" install
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_install_git_lfs.sh" | bash
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_setup_lfs_ssh.sh" | bash
 
       - name: Check out repository
         uses: actions/checkout@v4
@@ -175,11 +189,14 @@ jobs:
       ran_cases: ${{ steps.run.outputs.ran_cases }}
       has_pending: ${{ steps.pending.outputs.has_pending }}
     steps:
-      - name: Install Git LFS
+      - name: Install Git LFS and setup SSH (before checkout)
+        env:
+          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+          CONDA_ROOT: ${{ env.CONDA_ROOT }}
+          CONDA_ENV: ${{ env.CONDA_ENV }}
         run: |
-          "${{ env.CONDA_ROOT }}/bin/conda" install -y -n ${{ env.CONDA_ENV }} -c conda-forge git-lfs
-          echo "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin" >> $GITHUB_PATH
-          "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin/git-lfs" install
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_install_git_lfs.sh" | bash
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_setup_lfs_ssh.sh" | bash
 
       - name: Check out repository
         uses: actions/checkout@v4
@@ -205,7 +222,12 @@ jobs:
 
       - name: Show autopilot logs on failure
         if: failure()
-        run: bash tools/ci_show_logs.sh /tmp/autopilot_logs
+        run: |
+          LOG_DIR=/tmp/autopilot_logs
+          echo "=== LOG FILES ($LOG_DIR) ==="
+          for f in "$LOG_DIR"/*.log 2>/dev/null; do
+            [ -f "$f" ] && echo "=== $f ===" && cat "$f"
+          done
 
       - name: Setup LFS SSH
         env:
@@ -233,11 +255,14 @@ jobs:
       github.repository == 'akaptano/stellcoilbench'
     runs-on: [macOS]
     steps:
-      - name: Install Git LFS
+      - name: Install Git LFS and setup SSH (before checkout)
+        env:
+          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+          CONDA_ROOT: ${{ env.CONDA_ROOT }}
+          CONDA_ENV: ${{ env.CONDA_ENV }}
         run: |
-          "${{ env.CONDA_ROOT }}/bin/conda" install -y -n ${{ env.CONDA_ENV }} -c conda-forge git-lfs
-          echo "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin" >> $GITHUB_PATH
-          "${{ env.CONDA_ROOT }}/envs/${{ env.CONDA_ENV }}/bin/git-lfs" install
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_install_git_lfs.sh" | bash
+          curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/tools/ci_setup_lfs_ssh.sh" | bash
 
       - name: Check out repository
         uses: actions/checkout@v4
