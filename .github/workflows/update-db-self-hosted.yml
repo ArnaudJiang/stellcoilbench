@@ -252,7 +252,8 @@ jobs:
     needs: [run_autopilot_cases]
     if: >
       always() &&
-      github.repository == 'akaptano/stellcoilbench'
+      github.repository == 'akaptano/stellcoilbench' &&
+      needs.run_autopilot_cases.result == 'success'
     runs-on: [macOS]
     steps:
       - name: Install Git LFS and setup SSH (before checkout)
