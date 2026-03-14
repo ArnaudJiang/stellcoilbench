@@ -1,10 +1,10 @@
 # Forking StellCoilBench
 
-This guide explains how to fork StellCoilBench and work with Git LFS, which is used for large submission files (VTK meshes, plots).
+This guide explains how to fork StellCoilBench and work with Git LFS, which is used for large files in `submissions/` and `cases/done/` (VTK meshes, plots, JSON).
 
 ## How LFS Fork Isolation Works
 
-Submissions use **Git LFS** with a dedicated storage repo (`stellcoilbench-lfs`) that only the upstream owner has write access to. This ensures:
+Submissions and autopilot results in `cases/done/` use **Git LFS** with a dedicated storage repo (`stellcoilbench-lfs`) that only the upstream owner has write access to. This ensures:
 
 - **Forks cannot push to upstream's LFS** — attempts fail with 403 Forbidden.
 - **Forks can pull** — LFS objects are readable by everyone.
@@ -12,7 +12,7 @@ Submissions use **Git LFS** with a dedicated storage repo (`stellcoilbench-lfs`)
 
 ## Clone Options
 
-### Full clone (including submissions, ~17 GB)
+### Full clone (including submissions and cases/done, ~17 GB+)
 
 ```bash
 git clone https://github.com/akaptano/stellcoilbench.git

@@ -28,7 +28,7 @@ See `docs/cases.rst` for case definitions and options.
 |-----------|---------|
 | `cases/` | Benchmark case definitions (YAML). See `docs/cases.rst` |
 | `cases/pending/` | Autopilot queue (JSON, written by proposer) |
-| `cases/done/` | Autopilot results (gitignored; results in submissions/ + autopilot_failures.json) |
+| `cases/done/` | Autopilot results (gitignored for local dev; CI force-adds and tracks via LFS; results also in submissions/ + autopilot_failures.json) |
 | `submissions/<surface>/<user>/<case_name>/<datetime>/` | Submission zips and PDFs |
 | `submissions/<surface>/auto/<case_id>/` | Autopilot submissions |
 | `docs/leaderboards/` | Per-surface leaderboards (CI-generated) |
@@ -55,7 +55,7 @@ python tools/build_context.py | python -m json.tool      # Inspect context
 
 ## Submissions and Git LFS
 
-Large files (VTU, VTS, PNG, PDF) in `submissions/` are stored with Git LFS. A dedicated LFS repo (`stellcoilbench-lfs`) holds the blobs; only upstream maintainers can push. Fork pulls work; fork pushes to upstream LFS are blocked (403).
+Large files (VTU, VTS, PNG, PDF, and large JSON) in `submissions/` and `cases/done/` are stored with Git LFS. A dedicated LFS repo (`stellcoilbench-lfs`) holds the blobs; only upstream maintainers can push. Fork pulls work; fork pushes to upstream LFS are blocked (403).
 
 - **Clone with LFS:** `git clone` + `git lfs pull` (or ensure `git lfs install` ran)
 - **Code-only clone:** `GIT_LFS_SKIP_SMUDGE=true git clone ...` (skips ~17 GB)
