@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -55,12 +56,13 @@ def _launch(case_path: Path, log_path: Path) -> subprocess.Popen:
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
     env["STELLCOILBENCH_CI_VERBOSE_STDOUT"] = "1"
+    cmd = shutil.which("stellcoilbench") or str(
+        Path(sys.executable).parent / ("stellcoilbench.exe" if sys.platform == "win32" else "stellcoilbench")
+    )
     with open(log_path, "w") as f:
         return subprocess.Popen(
             [
-                sys.executable,
-                "-m",
-                "stellcoilbench.cli",
+                cmd,
                 "run-ci-case",
                 str(case_path),
                 "--output-dir",

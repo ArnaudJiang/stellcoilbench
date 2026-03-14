@@ -46,7 +46,7 @@ export MPLBACKEND=Agg PYTHONUNBUFFERED=1
 cd "$WORKSPACE"
 log "Running stellcoilbench..."
 
-python -u -m stellcoilbench.cli submit-case "$CASE_FILE" 2>&1 | tee -a "$LOG_FILE"
+stellcoilbench submit-case "$CASE_FILE" 2>&1 | tee -a "$LOG_FILE"
 EXIT_CODE=${PIPESTATUS[0]}
 
 if [ $EXIT_CODE -eq 0 ]; then
