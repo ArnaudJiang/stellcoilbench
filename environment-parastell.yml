@@ -1,0 +1,35 @@
+# Conda environment for StellCoilBench with ParaStell (finite-build tetrahedral mesh).
+#
+# ParaStell requires MOAB with PyMOAB bindings. MOAB from conda provides the C++ lib;
+# pymoab (Python bindings) is installed via pip from scopatz/pymoab.
+#
+#   conda env create -f environment-parastell.yml
+#   conda activate stellcoilbench_parastell
+#   pip install --no-deps "parastell @ git+https://github.com/svalinn/parastell.git"
+
+name: stellcoilbench_parastell
+channels:
+  - conda-forge
+dependencies:
+  # ParaStell dependencies (from https://github.com/svalinn/parastell)
+  - cadquery
+  - gmsh
+  - moab>=5.5.1
+  - cad_to_dagmc>=0.9.1
+  - openmc>=0.15.0
+  - matplotlib
+  - numpy
+  - scipy
+  - pip
+  - pip:
+    - "pymoab @ git+https://github.com/scopatz/pymoab.git"
+    - netcdf4
+    - pyyaml
+    - pydagmc
+    - pytest
+    - pytest-cov
+    - build
+    - black>=25
+    # StellCoilBench and its dependencies
+    - simsopt @ git+https://github.com/PedroFranciscoGil/simsopt.git@auglag_coils
+    - -e .

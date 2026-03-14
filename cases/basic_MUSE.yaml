@@ -1,0 +1,16 @@
+# a0 = 40.05 (minor_radius = 0.0425 m)
+description: "Modular coil optimization for the MUSE configuration: 4 coils at order 8, L-BFGS-B, standard objective terms."
+surface_params:
+  surface: "muse.focus"
+
+coils_params:
+  ncoils: 4
+  order: 8
+
+optimizer_params:
+  algorithm: "L-BFGS-B"
+  max_iterations: 1000
+
+coil_objective_terms:
+  cc_threshold: 0.8
+  cs_threshold: 1.7

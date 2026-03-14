@@ -1,0 +1,19 @@
+# a0 = 10.10 (minor_radius = 0.1683 m)
+description: "Modular coil optimization for the Landreman-Paul 2021 QA surface with Fourier continuation and coil-coil force constraint: 4 coils, L-BFGS-B, Fourier continuation from order 4 to 16, lp_threshold on coil-coil force."
+surface_params:
+  surface: "input.LandremanPaul2021_QA"
+
+coils_params:
+  ncoils: 4
+
+fourier_continuation:
+  enabled: true
+  orders: [4, 8, 16]
+
+optimizer_params:
+  algorithm: "L-BFGS-B"
+  max_iterations: 1000
+
+coil_objective_terms:
+  coil_coil_force: "lp_threshold"
+  cc_threshold: 2.0

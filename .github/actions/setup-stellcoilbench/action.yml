@@ -1,0 +1,88 @@
+# Composite action: install StellCoilBench dependencies (VMEC, SIMPLE, booz_xform, etc).
+# Use after conda/miniconda setup and checkout. Expects Python env already activated.
+#
+# Usage:
+#   - uses: conda-incubator/setup-miniconda@v3
+#     with:
+#       python-version: "3.13"
+#       activate-environment: test
+#   - uses: actions/checkout@v4
+#   - uses: ./.github/actions/setup-stellcoilbench
+name: Setup StellCoilBench
+description: Install VMEC, SIMPLE, booz_xform, virtual-casing and package deps
+runs:
+  using: composite
+  steps:
+    - name: Install conda packages (gmsh, fenics-dolfinx)
+      shell: bash
+      run: |
+        mamba install -y -c conda-forge gmsh
+        mamba install -y -c conda-forge fenics-dolfinx || echo "fenics-dolfinx install failed; DOLFINx tests will skip"
+
+    - name: Cache pip packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Upgrade pip
+      shell: bash
+      run: python -m pip install --upgrade pip
+
+    - name: Download VMEC2000
+      shell: bash
+      run: git clone --depth=1 https://github.com/hiddensymmetries/VMEC2000.git
+
+    - name: Install python dependencies
+      shell: bash
+      run: |
+        sudo apt-get install -y graphviz graphviz-dev
+        pip install numpy cmake scikit-build f90nml ninja wheel setuptools pyevtk matplotlib mpi4py h5py
+        pip install f90wrap==0.2.16
+
+    - name: Install booz_xform
+      shell: bash
+      run: pip install -v git+https://github.com/hiddenSymmetries/booz_xform
+
+    - name: Install virtual-casing
+      shell: bash
+      run: pip install -v git+https://github.com/hiddenSymmetries/virtual-casing
+
+    - name: Download and build SIMPLE
+      shell: bash
+      env:
+        MAKEFLAGS: ""
+      run: |
+        git clone --depth=1 https://github.com/itpplasma/SIMPLE.git
+        cd SIMPLE
+        FLAGS="-DENABLE_PYTHON_INTERFACE=OFF -DSIMPLE_TESTING=OFF" CMAKE_BUILD_PARALLEL_LEVEL=1 make -j1
+        cp build/simple.x ${{ github.workspace }}/simple.x
+
+    - name: Add LD_LIBRARY_PATH
+      shell: bash
+      run: echo "LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+
+    - name: Configure and install VMEC2000
+      shell: bash
+      run: |
+        cd VMEC2000
+        cp cmake/machines/ubuntu.json cmake_config_file.json
+        pip install .
+
+    - name: Verify VMEC import
+      shell: bash
+      run: python -c "import vmec; print('VMEC module imported successfully')"
+
+    - name: Install ruff
+      shell: bash
+      run: pip install ruff
+
+    - name: Install package
+      shell: bash
+      run: pip install -e .
+
+    - name: Install FEM backends
+      shell: bash
+      run: pip install scikit-fem meshio

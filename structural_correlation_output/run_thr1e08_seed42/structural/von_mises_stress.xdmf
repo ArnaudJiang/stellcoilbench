@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
+<Xdmf Version="3.0" xmlns:xi="https://www.w3.org/2001/XInclude">
+  <Domain>
+    <Grid Name="mesh" GridType="Uniform">
+      <Topology TopologyType="Tetrahedron" NumberOfElements="2880" NodesPerElement="4">
+        <DataItem Dimensions="2880 4" NumberType="Int" Format="HDF">von_mises_stress.h5:/Mesh/mesh/topology</DataItem>
+      </Topology>
+      <Geometry GeometryType="XYZ">
+        <DataItem Dimensions="1311 3" Format="HDF">von_mises_stress.h5:/Mesh/mesh/geometry</DataItem>
+      </Geometry>
+    </Grid>
+    <Grid Name="VonMisesStress" GridType="Collection" CollectionType="Temporal">
+      <Grid Name="VonMisesStress" GridType="Uniform">
+        <xi:include xpointer="xpointer(/Xdmf/Domain/Grid[@GridType='Uniform'][1]/*[self::Topology or self::Geometry])" />
+        <Time Value="0" />
+        <Attribute Name="VonMisesStress" AttributeType="Scalar" Center="Cell">
+          <DataItem Dimensions="2880 1" Format="HDF">von_mises_stress.h5:/Function/VonMisesStress/0</DataItem>
+        </Attribute>
+      </Grid>
+    </Grid>
+  </Domain>
+</Xdmf>

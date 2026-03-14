@@ -1,0 +1,19 @@
+# a0 = 10.10 (minor_radius = 0.1683 m)
+description: "Modular coil optimization for the Landreman-Paul 2021 QA surface with augmented Lagrangian and extended Fourier continuation: 4 coils, augmented Lagrangian with L-BFGS-B suboptimizer, Fourier continuation from order 4 to 8 to 12 to 16, 1000 iterations."
+surface_params:
+  surface: "input.LandremanPaul2021_QA"
+
+coils_params:
+  ncoils: 4
+
+fourier_continuation:
+  enabled: true
+  orders: [4, 8, 16]
+
+optimizer_params:
+  algorithm: "augmented_lagrangian"
+  max_iterations: 1000
+  max_iter_subopt: 20
+
+# coil_objective_terms:
+#   coil_coil_force: "lp_threshold"

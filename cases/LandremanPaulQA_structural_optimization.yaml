@@ -1,0 +1,30 @@
+# a0 = 10.10 (minor_radius = 0.1683 m)
+description: "Modular coil optimization for the Landreman-Paul 2021 QA surface with structural stress constraint in the loop: 4 coils at order 8, L-BFGS-B, 2000 iterations, von Mises stress threshold 800 MPa (REBCO limit)."
+surface_params:
+  surface: "input.LandremanPaul2021_QA"
+
+coils_params:
+  ncoils: 4
+  order: 4
+
+optimizer_params:
+  algorithm: "L-BFGS-B"
+  max_iterations: 200
+
+# fourier_continuation:
+#   enabled: true
+#   orders: [4, 8, 16]
+
+coil_objective_terms:
+  length_threshold: 242.4
+  cc_threshold: 1.8
+  cs_threshold: 1.5
+  structural_stress: "l2_threshold"
+  structural_stress_metric: "mean_von_mises"
+  structural_stress_threshold: 1e7   # specify in Pa
+  structural_mesh_resolution_coarse: 0.16
+  structural_quadrature_degree: 1
+  structural_eval_interval: 1
+
+post_processing:
+  finite_build_width: 0.1

@@ -1,0 +1,126 @@
+# Nonstop CI Autopilot — Proposer Policy
+#
+# This file controls the deterministic (genetic-algorithm) proposer.
+# The LLM proposer (--llm flag) also reads this policy for resource caps,
+# Fourier continuation, and allowed surfaces/algorithms.
+#
+# Two proposer modes share this config:
+#   1. Deterministic GA (default): mutation of top parents + random exploration.
+#   2. LLM-powered (opt-in --llm): KB /propose endpoint generates actions;
+#      falls back to GA when KB is unreachable or returns too few cases.
+
+# --- Batch settings ---
+batch_size: 10
+exploit_fraction: 0.5          # fraction of batch that is mutation (exploit)
+top_k_parents: 10              # number of top feasible parents to consider for mutation
+
+# --- Resource caps (hard limits, enforced by validator and runner) ---
+resource_caps:
+  max_total_iterations: 5000
+  max_maxiter: 5000            # per-stage maxiter cap
+  timeout_minutes_min: 1
+  timeout_minutes_max: 60
+  timeout_minutes_default: 30   # 30 min default per case
+
+# --- Mutation (exploit) parameters ---
+# The GA exploits top parents by jittering their constraint thresholds and
+# occasionally changing structural parameters (ncoils, Fourier order).
+# Weights are NOT mutated — augmented_lagrangian auto-tunes them.
+mutation:
+  threshold_sigma: 0.25        # lognormal sigma for threshold jitter (15% typical change)
+  structural_mutation_prob: 0.2 # probability of changing ncoils or order
+  ncoils_choices: [3, 4, 5, 6]
+  order_choices: [4]
+  max_iterations: 500          # fixed (not scanned)
+  dof_perturbation: 0.0       # random perturbation scale for initial coil DOFs
+
+# --- Fourier continuation (applies to both exploration and mutation) ---
+# Progressively increase coil Fourier order for better convergence.
+fourier_continuation:
+  enabled: true
+  orders: [4, 8, 16]
+
+# --- Exploration parameters ---
+# The GA explores by sampling random configs with log-uniform thresholds.
+# Different threshold combinations push the optimizer to different local
+# minima, mapping out the Pareto frontier of constraint satisfaction vs
+# field accuracy.
+exploration:
+  use_default_thresholds: false  # sample thresholds for diversity
+  # Threshold ranges (sampled log-uniformly).
+  # All thresholds are at ARIES-CS reactor scale (a=1.7 m).  The optimizer
+  # always rescales them to device scale via a0 = 1.7 / minor_radius
+  # (length-like / a0, curvature-like * a0, force * a0, torque unchanged)
+  # in _compute_thresholds_from_surface.  Force and torque also get
+  # current_scale_factor = (I_device / I_reactor)^2 in the optimization loop.
+  length_threshold_range: [100.0, 200.0]
+  cc_threshold_range: [0.7, 2.0]
+  cs_threshold_range: [1.0, 3.0]
+  curvature_threshold_range: [0.5, 5.0]
+  msc_threshold_range: [0.5, 5.0]
+  force_threshold_range: [50.0, 500.0]
+  torque_threshold_range: [1.0, 500.0]   # N (electromagnetic torque)
+  torsion_threshold_range: [0.5, 15.0]    # 1/m (coil torsion, scales like curvature)
+  # Coil parameter ranges
+  ncoils_choices: [3, 4, 5, 6]
+  order_choices: [4]
+  max_iterations: 500            # fixed (not scanned)
+  dof_perturbation: 0.0         # random perturbation scale for initial coil DOFs
+  include_force: true           # set to true to add coil_coil_force objective
+  include_torque: false         # set to true to add coil_coil_torque objective
+  include_torsion: false        # set to true to add coil_torsion objective
+  # Available surfaces (must correspond to files in plasma_surfaces/)
+  surfaces:
+    - "input.LandremanPaul2021_QA"
+    # - "muse.focus"
+  # Algorithm: only augmented_lagrangian (auto-tunes weights)
+  algorithms:
+    - "augmented_lagrangian"
+  # Available objective term types
+  objective_term_options:
+    total_length: ["l2_threshold"]
+    coil_curvature: ["lp_threshold"]
+    coil_mean_squared_curvature: ["l2_threshold"]
+    coil_arclength_variation: ["l2_threshold"]
+    linking_number: [""]
+    # coil_coil_force: ["lp_threshold"]
+
+# --- Guardrails ---
+# Shared by both GA and LLM proposers. Halt proposals when failure
+# rates are too high to prevent wasting CI resources.
+guardrails:
+  sliding_window: 30           # number of recent completed cases to consider
+  max_fail_rate: 0.6           # stop proposing if fail_rate exceeds this
+  max_common_failure_count: 12 # stop if most common failure_reason repeats this many times
+  max_critical_class_count: 10 # stop if a critical failure_class repeats this many times
+  critical_failure_classes:    # failure classes to track separately
+    - "vmec_nonconverged"
+    - "nan_in_objective"
+    - "timeout"
+
+# --- Safe mode ---
+# Activated when fail_rate is elevated (> threshold) but below max_fail_rate.
+# Reduces mutation aggressiveness and restricts to simpler surfaces.
+safe_mode:
+  threshold: 0.35              # enter safe mode if fail_rate > this
+  max_iterations_cap: 5000     # limit iterations in safe mode
+  preferred_surfaces:
+    - "input.LandremanPaul2021_QA"
+    # - "input.circular_tokamak"
+    # - "input.rotating_ellipse"
+
+# --- LLM proposer settings ---
+# Controls the context-aware LLM proposer (--llm flag).
+# The LLM receives domain context docs (surface catalog, optimization guide,
+# threshold scaling) in its system prompt, plus run cards, postmortems,
+# and surface exploration counts in the user prompt.
+llm_proposer:
+  max_run_cards: 10            # max run cards to include in user prompt
+  max_postmortems: 5           # max failure postmortems to include
+  max_prior_reasoning_batches: 50  # max prior proposal batches to include (reasoning history)
+  temperature: 0.3             # LLM sampling temperature for proposals
+
+# --- Cooldown ---
+cooldown:
+  batches_after_guardrail: 3   # pause for N scheduled cycles after guardrail trigger
+  write_pause_file: true       # create PAUSE_AUTORUN on guardrail trigger

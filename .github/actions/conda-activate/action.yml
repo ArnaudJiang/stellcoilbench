@@ -1,0 +1,54 @@
+# Composite action: source conda from common paths, activate env, run script.
+# Replaces ~15 lines of conda-sourcing boilerplate repeated across the workflow.
+#
+# Usage:
+#   - uses: ./.github/actions/conda-activate
+#     with:
+#       env: ${{ env.CONDA_ENV }}
+#       run: |
+#         pip install -e .
+#         python -c "import foo"
+name: Conda activate
+description: Source conda from common paths and activate environment
+inputs:
+  env:
+    description: Conda environment name to activate
+    required: true
+  run:
+    description: Bash script to run after activation (required)
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Activate conda and run
+      shell: bash
+      run: |
+        CONDA_FOUND=
+        # CONDA_ROOT from workflow env overrides path search (for self-hosted runners)
+        if [ -n "${CONDA_ROOT:-}" ] && [ -f "${CONDA_ROOT}/etc/profile.d/conda.sh" ]; then
+          source "${CONDA_ROOT}/etc/profile.d/conda.sh"
+          CONDA_FOUND=1
+        fi
+        if [ -z "$CONDA_FOUND" ]; then
+          for p in "$HOME/miniconda3" "$HOME/anaconda3" "$HOME/opt/miniconda3" "$HOME/opt/anaconda3" \
+                    "/opt/homebrew/Caskroom/miniconda/base" "/opt/homebrew/Caskroom/anaconda/base" \
+                    "/usr/local/miniconda3" "/usr/local/anaconda3"; do
+            if [ -f "$p/etc/profile.d/conda.sh" ]; then
+              source "$p/etc/profile.d/conda.sh"
+              CONDA_FOUND=1
+              break
+            fi
+          done
+        fi
+        if [ -z "$CONDA_FOUND" ]; then
+          if command -v conda >/dev/null 2>&1; then
+            eval "$(conda shell.bash hook)"
+          else
+            echo "ERROR: Could not find conda. Install miniconda/anaconda or add its path to this workflow."
+            echo "Searched: $HOME/miniconda3, $HOME/anaconda3, $HOME/opt/miniconda3, $HOME/opt/anaconda3,"
+            echo "  /opt/homebrew/Caskroom/miniconda/base, /opt/homebrew/Caskroom/anaconda/base"
+            exit 1
+          fi
+        fi
+        conda activate ${{ inputs.env }}
+        ${{ inputs.run }}

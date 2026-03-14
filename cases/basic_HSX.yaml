@@ -1,0 +1,20 @@
+# a0 = 13.47 (minor_radius = 0.1263 m)
+description: "Modular coil optimization for the HSX (Helically Symmetric eXperiment) quasi-helically symmetric configuration (mn1824_ns101): 5 coils, L-BFGS-B, Fourier continuation from order 4 to 8 (reactor-scale thresholds)."
+surface_params:
+  surface: "input.HSX_QHS_mn1824_ns101"
+
+coils_params:
+  ncoils: 5
+
+fourier_continuation:
+  enabled: true
+  orders: [4, 8]
+
+optimizer_params:
+  algorithm: "L-BFGS-B"
+  max_iterations: 1000
+
+coil_objective_terms:
+  length_threshold: 202.0   # 15 * a0 (15 m device-scale)
+  cc_threshold: 2.69       # 0.2 * a0 (0.2 m device-scale)
+

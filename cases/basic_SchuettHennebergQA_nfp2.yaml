@@ -1,0 +1,16 @@
+# a0 = 0.80 (minor_radius = 2.131 m)
+description: "Modular coil optimization for the Schuett-Henneberg quasi-axisymmetric QA design (nfp=2): 4 coils at order 8, L-BFGS-B, virtual casing enabled for B-field target, Boozer and Poincaré plots and other post-processing should be disabled because virtual casing is needed for the B-field target."
+surface_params:
+  surface: "wout_schuetthenneberg_nfp2.nc"
+  virtual_casing: false
+
+coils_params:
+  ncoils: 4
+  order: 8
+
+optimizer_params:
+  algorithm: "L-BFGS-B"
+  max_iterations: 500
+
+coil_objective_terms:
+  length_threshold: 150.0

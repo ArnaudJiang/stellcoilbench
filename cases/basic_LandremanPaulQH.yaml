@@ -1,0 +1,19 @@
+# a0 = 1.00 (minor_radius = 1.704 m)
+description: "Modular coil optimization for the Landreman-Paul 2021 quasi-helical (QH) reactor-scale low-resolution surface: 5 coils, L-BFGS-B, Fourier continuation from order 4 to 16, length threshold 180 m for reactor-scale coils."
+surface_params:
+  surface: "input.LandremanPaul2021_QH_reactorScale_lowres"
+
+coils_params:
+  ncoils: 4
+
+fourier_continuation:
+  enabled: true
+  orders: [4, 8, 16]
+
+optimizer_params:
+  algorithm: "L-BFGS-B"
+  max_iterations: 1000
+
+coil_objective_terms:
+  length_threshold: 180.0
+  cc_threshold: 0.8

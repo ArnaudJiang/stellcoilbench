@@ -1,0 +1,94 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+
+# Queue new runs instead of canceling in-progress ones
+# This ensures CI runs always complete
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Free disk space (runner has limited space; apt-get can fail otherwise)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false  # keep pre-cached tools
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: apt-get stuff needed for vmec
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gfortran openmpi-bin libopenmpi-dev libnetcdf-dev libnetcdff-dev liblapack-dev libscalapack-mpi-dev libhdf5-dev libhdf5-serial-dev git m4 libfftw3-dev libboost-all-dev libopenblas-dev libgsl-dev
+
+      - name: Check out repository (exclude submissions to avoid disk space)
+        run: |
+          git clone --filter=blob:none --no-checkout --depth 1 --sparse \
+            "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" .
+          git sparse-checkout set --no-cone "/*" "!/submissions/"
+          git checkout ${{ github.sha }}
+          mkdir -p submissions
+
+      - name: Set up conda with Python
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-variant: Miniforge3
+          miniforge-version: "25.11.0-1"
+          use-mamba: true
+          mamba-version: "*"
+          channels: conda-forge
+          channel-priority: strict
+          python-version: "3.13"
+          activate-environment: test
+
+      - name: Setup StellCoilBench (VMEC, SIMPLE, booz_xform, virtual-casing)
+        uses: ./.github/actions/setup-stellcoilbench
+
+      - name: Run ruff
+        run: ruff check src/ tests/ --ignore F403,F405
+
+      - name: Validate case YAML files
+        run: |
+          python -c "
+          from pathlib import Path
+          from stellcoilbench.validate_config import validate_case_yaml_file
+          errors = []
+          for f in sorted(Path('cases').glob('*.yaml')):
+              result = validate_case_yaml_file(f)
+              if result:
+                  errors.append((f.name, result))
+          if errors:
+              for name, errs in errors:
+                  print(f'FAIL: {name}')
+                  for e in errs:
+                      print(f'  - {e}')
+              exit(1)
+          print(f'All {len(list(Path(\"cases\").glob(\"*.yaml\")))} case files valid')
+          "
+
+      - name: Run unit tests with coverage
+        env:
+          MPLBACKEND: Agg  # Ensure matplotlib uses non-interactive backend
+          OMP_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+        run: |
+          pytest tests/ -v --tb=short --cov=stellcoilbench --cov-report=term-missing --cov-fail-under=0

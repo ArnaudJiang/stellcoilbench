@@ -1,0 +1,5 @@
+# Git LFS configuration. Points to a dedicated repo that only upstream has write access.
+# Forks can PULL (read) but cannot PUSH — they get 403. To add submissions from a fork,
+# add .lfsconfig in your fork pointing to your own LFS backend. See docs/forking.md.
+[lfs]
+	url = git@github-lfs:akaptano/stellcoilbench-lfs.git

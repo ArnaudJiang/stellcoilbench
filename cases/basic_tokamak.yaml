@@ -1,0 +1,16 @@
+# a0 = 0.85 (minor_radius = 2.00 m)
+description: "Modular coil optimization for a circular tokamak surface (full torus, axisymmetric): 6 coils at order 4, L-BFGS-B, 200 iterations, length threshold 180 m."
+surface_params:
+  surface: "input.circular_tokamak"
+  range: "full torus"
+
+coils_params:
+  ncoils: 6
+  order: 4
+
+optimizer_params:
+  algorithm: "L-BFGS-B"
+  max_iterations: 200
+
+coil_objective_terms:
+  length_threshold: 180.0

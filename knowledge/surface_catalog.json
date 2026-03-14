@@ -1,0 +1,140 @@
+{
+  "description": "Plasma surfaces available in StellCoilBench with physical parameters. Minor radii are computed from simsopt SurfaceRZFourier objects. All thresholds in case files and the proposer policy are specified at ARIES-CS reactor scale (a=1.7 m) and are automatically rescaled to device scale via a0 = 1.7 / minor_radius.",
+  "reference": {
+    "ARIES_CS_minor_radius_m": 1.7,
+    "ARIES_CS_major_radius_m": 7.75,
+    "ARIES_CS_B_field_T": 5.7
+  },
+  "surfaces": [
+    {
+      "file": "input.LandremanPaul2021_QA",
+      "short_name": "QA",
+      "description": "Landreman-Paul 2021 quasi-axisymmetric stellarator (nfp=2, stellsym)",
+      "minor_radius_m": 0.1683,
+      "major_radius_m": 1.0099,
+      "a0": 10.10,
+      "nfp": 2,
+      "stellsym": true,
+      "typical_ncoils": [3, 4, 5],
+      "typical_orders": [4, 8, 12, 16],
+      "notes": "Well-studied benchmark surface. Device-scale thresholds are ~10× smaller than reactor-scale. Very small surface — coils need low Fourier orders to avoid overfitting."
+    },
+    {
+      "file": "input.LandremanPaul2021_QH_reactorScale_lowres",
+      "short_name": "QH",
+      "description": "Landreman-Paul 2021 quasi-helically symmetric stellarator at reactor scale (nfp=4, stellsym)",
+      "minor_radius_m": 1.7044,
+      "major_radius_m": 13.635,
+      "a0": 0.997,
+      "nfp": 4,
+      "stellsym": true,
+      "typical_ncoils": [4, 5],
+      "typical_orders": [4, 8, 16],
+      "notes": "Already at reactor scale (a0 ≈ 1.0). Thresholds in case files map nearly 1:1 to device scale. Challenging due to nfp=4 and complex shaping."
+    },
+    {
+      "file": "input.HSX_QHS_mn1824_ns101",
+      "short_name": "HSX",
+      "description": "Helically Symmetric eXperiment quasi-helically symmetric configuration (nfp=4, stellsym)",
+      "minor_radius_m": 0.1263,
+      "major_radius_m": 1.2108,
+      "a0": 13.47,
+      "nfp": 4,
+      "stellsym": true,
+      "typical_ncoils": [4, 5, 6],
+      "typical_orders": [4, 8],
+      "notes": "Very small surface with high a0. Device-scale thresholds are ~13× smaller. Complex 3D shaping with nfp=4 makes coil design challenging."
+    },
+    {
+      "file": "input.W7-X_without_coil_ripple_beta0p05_d23p4_tm",
+      "short_name": "W7X",
+      "description": "Wendelstein 7-X without coil ripple, beta=0.05, d23p4_tm (nfp=5, stellsym)",
+      "minor_radius_m": 0.5241,
+      "major_radius_m": 5.4836,
+      "a0": 3.24,
+      "nfp": 5,
+      "stellsym": true,
+      "typical_ncoils": [4, 5],
+      "typical_orders": [4, 8, 16],
+      "notes": "Medium-scale surface. nfp=5 means 5× coil symmetry. Good testbed for constrained optimization (cc, cs thresholds matter here)."
+    },
+    {
+      "file": "c09r00_B_axis_half_tesla_NCSX",
+      "short_name": "NCSX",
+      "description": "NCSX c09r00 half-tesla configuration (nfp=3, stellsym, FOCUS format)",
+      "minor_radius_m": 0.3226,
+      "major_radius_m": 1.4420,
+      "a0": 5.27,
+      "nfp": 3,
+      "stellsym": true,
+      "typical_ncoils": [4],
+      "typical_orders": [4, 8],
+      "notes": "FOCUS-format surface file. Moderate a0 scaling."
+    },
+    {
+      "file": "input.circular_tokamak",
+      "short_name": "tokamak",
+      "description": "Circular tokamak surface (nfp=1, axisymmetric, full torus)",
+      "minor_radius_m": 2.0000,
+      "major_radius_m": 6.0000,
+      "a0": 0.85,
+      "nfp": 1,
+      "stellsym": true,
+      "typical_ncoils": [6],
+      "typical_orders": [4],
+      "notes": "Simplest geometry. Already near reactor scale (a0 < 1). Uses full torus range. Good for sanity checks."
+    },
+    {
+      "file": "wout_schuetthenneberg_nfp2.nc",
+      "short_name": "SchuettHenneberg",
+      "description": "Schuett-Henneberg QA design (nfp=2, VMEC wout format)",
+      "minor_radius_m": 2.1308,
+      "major_radius_m": 5.1504,
+      "a0": 0.80,
+      "nfp": 2,
+      "stellsym": true,
+      "typical_ncoils": [4],
+      "typical_orders": [8],
+      "notes": "Large reactor-scale surface (a0 < 1). VMEC wout format — virtual casing option available."
+    },
+    {
+      "file": "muse.focus",
+      "short_name": "MUSE",
+      "description": "MUSE configuration (nfp=2, stellsym, FOCUS format)",
+      "minor_radius_m": 0.0425,
+      "major_radius_m": 0.3076,
+      "a0": 40.05,
+      "nfp": 2,
+      "stellsym": true,
+      "typical_ncoils": [4],
+      "typical_orders": [8],
+      "notes": "Extremely small tabletop stellarator. Highest a0 of all surfaces — device-scale thresholds are ~40× smaller than reactor-scale defaults. May need adjusted thresholds."
+    },
+    {
+      "file": "input.cfqs_2b40",
+      "short_name": "CFQS",
+      "description": "CFQS 2b40 configuration (nfp=2, stellsym)",
+      "minor_radius_m": 0.2298,
+      "major_radius_m": 0.9942,
+      "a0": 7.40,
+      "nfp": 2,
+      "stellsym": true,
+      "typical_ncoils": [4],
+      "typical_orders": [8],
+      "notes": "Small Chinese stellarator design. Moderate a0 scaling."
+    },
+    {
+      "file": "input.rotating_ellipse",
+      "short_name": "rotating_ellipse",
+      "description": "Rotating ellipse surface (simple analytic geometry, nfp=2, stellsym)",
+      "minor_radius_m": 1.4142,
+      "major_radius_m": 5.0000,
+      "a0": 1.20,
+      "nfp": 2,
+      "stellsym": true,
+      "typical_ncoils": [4],
+      "typical_orders": [8],
+      "notes": "Simple analytic surface, near reactor scale. Good for testing."
+    }
+  ]
+}

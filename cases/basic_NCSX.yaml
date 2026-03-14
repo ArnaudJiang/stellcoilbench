@@ -1,0 +1,19 @@
+# a0 = 5.27 (minor_radius = 0.3226 m)
+description: "Modular coil optimization for the NCSX (National Compact Stellarator Experiment) c09r00 half-tesla configuration: 4 coils, L-BFGS-B, Fourier continuation from order 4 to 8 (reactor-scale thresholds)."
+surface_params:
+  surface: "c09r00_B_axis_half_tesla_NCSX.focus"
+
+coils_params:
+  ncoils: 4
+
+fourier_continuation:
+  enabled: true
+  orders: [4, 8]
+
+optimizer_params:
+  algorithm: "L-BFGS-B"
+  max_iterations: 1000
+
+coil_objective_terms:
+  length_threshold: 158.1  # 30 * a0 (30 m device-scale)
+

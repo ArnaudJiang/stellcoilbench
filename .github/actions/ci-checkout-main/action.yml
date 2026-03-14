@@ -1,0 +1,16 @@
+# Checkout main with full history and SSH key for push access.
+name: Checkout main
+description: Checkout repository at ref main with fetch-depth 0
+inputs:
+  ssh_key:
+    description: SSH key secret for push access
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+        lfs: true
+        ssh-key: ${{ inputs.ssh_key }}

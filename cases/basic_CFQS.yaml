@@ -1,0 +1,13 @@
+# a0 = 7.40 (minor_radius = 0.2298 m)
+description: "Modular coil optimization for the CFQS (Chinese First Quasi-axisymmetric Stellarator) 2b40 configuration: 4 coils at order 8, L-BFGS-B, standard objective terms."
+surface_params:
+  surface: "input.cfqs_2b40"
+
+coils_params:
+  ncoils: 4
+  order: 8
+
+optimizer_params:
+  algorithm: "L-BFGS-B"
+  max_iterations: 1000
+

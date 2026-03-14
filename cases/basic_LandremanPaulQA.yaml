@@ -1,0 +1,15 @@
+# a0 = 10.10 (minor_radius = 0.1683 m)
+description: "Modular coil optimization for the Landreman-Paul 2021 quasi-axisymmetric (QA) surface: 4 coils at order 8, L-BFGS-B, 2000 iterations, length threshold 200 m (reactor scale)."
+surface_params:
+  surface: "input.LandremanPaul2021_QA"
+
+coils_params:
+  ncoils: 4
+  order: 8
+
+optimizer_params:
+  algorithm: "L-BFGS-B"
+  max_iterations: 2000
+
+coil_objective_terms:
+  length_threshold: 242.4   # 24 * a0 (24 m device-scale)

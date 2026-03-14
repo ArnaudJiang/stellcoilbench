@@ -1,0 +1,18 @@
+# a0 = 1.20 (minor_radius = 1.414 m)
+description: "Modular coil optimization for the rotating ellipse surface (simple analytic geometry): 4 coils at order 8, L-BFGS-B, standard objective terms."
+surface_params:
+  surface: "input.rotating_ellipse"
+
+coils_params:
+  ncoils: 4
+  order: 8
+
+optimizer_params:
+  algorithm: "L-BFGS-B"
+  max_iterations: 500
+
+coil_objective_terms:
+  length_threshold: 160.0
+  torsion_threshold: 0.5
+  curvature_threshold: 0.5
+  coil_torsion: "lp_threshold"

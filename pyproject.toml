@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/stellcoilbench"]
+force-include = { "src/stellcoilbench/update_db/_rst_templates/composite_score.rst" = "stellcoilbench/update_db/_rst_templates/composite_score.rst", "src/stellcoilbench/update_db/_rst_templates/winding_pack_model.rst" = "stellcoilbench/update_db/_rst_templates/winding_pack_model.rst" }
+
+[project]
+name = "stellcoilbench"
+version = "0.1.0"
+description = "Benchmark suite for stellarator coil optimization algorithms."
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+  {name = "Alan Kaptanoglu", email = "alanakaptanoglu@gmail.com"}
+]
+
+dependencies = [
+    "numpy>=1.24,<1.26; python_version<\"3.12\"",  # Avoid NumPy 1.26-1.29 (incompatible with JAX 0.8.1)
+    "numpy>=2.0; python_version>=\"3.12\"",  # NumPy 2.0+ works with JAX 0.8.1 (has fallback for copy param)
+    "typer[all]>=0.9",
+    "PyYAML>=6.0",
+    "pandas>=2.0",
+    "pytest>=7.0",
+    "pytest-cov",
+    "black>=23.0",
+    "ruff>=0.4.0",
+    "mpi4py>=3.1",
+    "psutil>=5.9",
+    "threadpoolctl>=3.0",
+    "matplotlib>=3.5",
+    "simsopt @ git+https://github.com/PedroFranciscoGil/simsopt.git@auglag_coils",
+    "arxiv>=2.0.0",
+    "requests>=2.28.0",
+]
+
+[project.optional-dependencies]
+DOCS = [
+    "sphinx>=7.2",
+    "sphinx-rtd-theme>=2.0",
+    "sphinxcontrib-napoleon",
+    "sphinx-autodoc-napoleon-typehints",
+    "breathe",
+    "docutils",
+]
+llm = ["anthropic>=0.18.0"]
+post-processing = [
+    "booz_xform @ git+https://github.com/hiddenSymmetries/booz_xform.git",
+    "virtual-casing @ git+https://github.com/hiddenSymmetries/virtual-casing.git",
+]
+# Lightweight structural analysis fallback (scikit-fem); DOLFINx via conda only.
+structural = [
+    "scikit-fem",
+    "meshio",
+    "gmsh",
+    "sympy",
+]
+# ParaStell for robust tetrahedral coil mesh (CadQuery geometry + Gmsh meshing).
+# Use environment-parastell.yml for full conda env; this enables pip install .[parastell]
+parastell = [
+    "parastell @ git+https://github.com/svalinn/parastell.git",
+]
+
+[project.scripts]
+stellcoilbench = "stellcoilbench.cli:main"
+
+[tool.ruff.lint]
+ignore = ["F403", "F405", "E402"]
+
+[tool.pytest.ini_options]
+markers = [
+    "benchmark: profiling/timing tests (deselected by default)",
+]
+

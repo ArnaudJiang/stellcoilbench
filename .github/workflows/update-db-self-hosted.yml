@@ -1,0 +1,231 @@
+# Self-hosted: benchmark + autopilot. On push (code/cases): benchmark + autopilot.
+# On push (proposer commits cases/pending/): autopilot only (nonstop loop).
+# On push (runner commits done only): skipped (paths-ignore).
+# Schedule/dispatch: autopilot only. Proposer push triggers run; batch barrier prevents duplicates.
+name: StellCoilBench CI (Self-Hosted)
+
+on:
+  push:
+    branches: [ main ]
+    # Ignore autopilot result-only commits so they don't re-trigger the
+    # pipeline.  cases/pending/** is intentionally NOT ignored: when the
+    # proposer pushes new pending cases, that push must trigger a run
+    # so the runner picks them up immediately (nonstop loop).
+    paths-ignore:
+      - 'cases/done/**'
+      - 'submissions/**'
+      - 'docs/leaderboard/**'
+      - 'docs/leaderboards/**'
+      - 'docs/leaderboard.json'
+      - 'docs/leaderboard.rst'
+      - 'PAUSE_AUTORUN'
+  schedule:
+    - cron: '*/10 * * * *'   # autopilot: every 10 minutes
+  workflow_dispatch:
+
+concurrency:
+  group: stellcoilbench-selfhosted-main
+  cancel-in-progress: false  # Queue new runs; don't cancel the autopilot mid-commit
+
+permissions:
+  contents: write
+
+env:
+  CONDA_ENV: stellcoilbench_ci
+  CONDA_ROOT: /Users/akaptanoglu/anaconda3  # for self-hosted Mac runner; adjust if conda lives elsewhere
+  SIMPLE_EXECUTABLE: /Users/akaptanoglu/simple/build/simple.x
+
+jobs:
+  # ---- Standard benchmark path (only on push to main) ----
+  determine_cases:
+    if: >
+      github.repository == 'akaptano/stellcoilbench' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
+    runs-on: [macOS]
+    outputs:
+      cases_to_run_json: ${{ steps.filter.outputs.cases_to_run_json }}
+      has_cases: ${{ steps.filter.outputs.has_cases }}
+    steps:
+      - name: Check out repository
+        uses: ./.github/actions/ci-checkout-main
+        with:
+          ssh_key: ${{ secrets.DEPLOY_KEY }}
+
+      - name: Filter cases to run
+        id: filter
+        uses: ./.github/actions/conda-activate
+        with:
+          env: ${{ env.CONDA_ENV }}
+          run: pip install pyyaml -q 2>/dev/null || true; python tools/ci_filter_cases.py --cases-dir cases --github-output
+
+  run_cases:
+    needs: [determine_cases]
+    if: >
+      github.repository == 'akaptano/stellcoilbench' &&
+      github.event_name == 'push' &&
+      needs.determine_cases.outputs.has_cases == 'true'
+    runs-on: [macOS]
+    timeout-minutes: 1440  # 24 hours
+    steps:
+      - name: Check out repository
+        uses: ./.github/actions/ci-checkout-main
+        with:
+          ssh_key: ${{ secrets.DEPLOY_KEY }}
+
+      - name: Install stellcoilbench
+        uses: ./.github/actions/conda-activate
+        with:
+          env: ${{ env.CONDA_ENV }}
+          run: |
+            pip install -e . --no-cache-dir
+            python -c "import stellcoilbench.reactor_scale; print('stellcoilbench install OK')"
+
+      - name: Run all cases in parallel
+        uses: ./.github/actions/conda-activate
+        env:
+          MPLBACKEND: Agg
+          CASES_JSON: ${{ needs.determine_cases.outputs.cases_to_run_json }}
+          PARALLEL_JOBS: "10"
+        with:
+          env: ${{ env.CONDA_ENV }}
+          run: bash tools/ci_run_benchmark_parallel.sh
+
+      - name: Show all logs on failure
+        if: failure()
+        run: bash tools/ci_show_logs.sh /tmp/stellcoilbench_logs
+
+      - name: Setup LFS SSH
+        env:
+          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+        run: bash tools/ci_setup_lfs_ssh.sh
+
+      - name: Commit all submissions
+        if: always()
+        run: bash tools/ci_commit_benchmark_submissions.sh
+
+  update_leaderboard:
+    needs: [determine_cases, run_cases, run_autopilot_cases]
+    if: >
+      always() &&
+      github.repository == 'akaptano/stellcoilbench' &&
+      (needs.determine_cases.outputs.has_cases == 'true' || needs.run_autopilot_cases.outputs.has_pending == 'true')
+    runs-on: [macOS]
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: ./.github/actions/ci-checkout-main
+        with:
+          ssh_key: ${{ secrets.DEPLOY_KEY }}
+
+      - name: Pull latest changes
+        run: bash tools/ci_pull.sh --no-rebase
+
+      - name: Generate leaderboard
+        uses: ./.github/actions/conda-activate
+        with:
+          env: ${{ env.CONDA_ENV }}
+          run: |
+            echo "=== Generating leaderboard ==="
+            stellcoilbench update-db
+
+      - name: Setup LFS SSH
+        env:
+          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+        run: bash tools/ci_setup_lfs_ssh.sh
+
+      - name: Commit leaderboard
+        run: bash tools/ci_commit_leaderboard.sh
+
+  # =========================================================================
+  # Nonstop CI autopilot: run pending cases from cases/pending/*.json
+  # =========================================================================
+  run_autopilot_cases:
+    if: github.repository == 'akaptano/stellcoilbench'
+    runs-on: [macOS]
+    timeout-minutes: 90  # Must be > max per-case timeout (60m) + buffer for commit
+    outputs:
+      ran_cases: ${{ steps.run.outputs.ran_cases }}
+      has_pending: ${{ steps.pending.outputs.has_pending }}
+    steps:
+      - name: Check out repository
+        uses: ./.github/actions/ci-checkout-main
+        with:
+          ssh_key: ${{ secrets.DEPLOY_KEY }}
+
+      - name: Check for pending cases
+        id: pending
+        run: bash tools/ci_has_pending.sh
+
+      - name: Run autopilot cases
+        id: run
+        if: steps.pending.outputs.has_pending == 'true'
+        uses: ./.github/actions/conda-activate
+        env:
+          MPLBACKEND: Agg
+        with:
+          env: ${{ env.CONDA_ENV }}
+          run: bash tools/ci_autopilot_batch.sh
+
+      - name: Show autopilot logs on failure
+        if: failure()
+        run: bash tools/ci_show_logs.sh /tmp/autopilot_logs
+
+      - name: Setup LFS SSH
+        env:
+          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+        run: bash tools/ci_setup_lfs_ssh.sh
+
+      - name: Commit autopilot results and update leaderboard
+        if: always() && steps.pending.outputs.has_pending == 'true'
+        uses: ./.github/actions/conda-activate
+        with:
+          env: ${{ env.CONDA_ENV }}
+          run: bash tools/ci_commit_autopilot_results.sh
+
+  # =========================================================================
+  # Nonstop CI autopilot: propose next batch
+  # Runs on ALL event types (push, schedule, dispatch).  The proposer has
+  # its own guards (PAUSE_AUTORUN, batch barrier, guardrails) so running
+  # it on push is safe and solves the bootstrap problem: the first push
+  # after merging the autopilot code immediately proposes 8 cases.
+  # =========================================================================
+  propose_autopilot_batch:
+    needs: [run_autopilot_cases]
+    if: >
+      always() &&
+      github.repository == 'akaptano/stellcoilbench'
+    runs-on: [macOS]
+    steps:
+      - name: Check out repository
+        uses: ./.github/actions/ci-checkout-main
+        with:
+          ssh_key: ${{ secrets.DEPLOY_KEY }}
+
+      - name: Pull latest (after autopilot run)
+        run: bash tools/ci_pull.sh --no-rebase
+
+      - name: Install stellcoilbench
+        uses: ./.github/actions/conda-activate
+        with:
+          env: ${{ env.CONDA_ENV }}
+          run: pip install -e . --no-cache-dir
+
+      - name: Propose batch
+        uses: ./.github/actions/conda-activate
+        env:
+          KB_LLM_PROVIDER: anthropic
+          KB_LLM_MODEL: claude-sonnet-4-20250514
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PYTHONPATH: ${{ github.workspace }}
+        with:
+          env: ${{ env.CONDA_ENV }}
+          run: bash tools/ci_propose_batch_wrapper.sh
+
+      - name: Setup LFS SSH
+        env:
+          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+        run: bash tools/ci_setup_lfs_ssh.sh
+
+      - name: Commit proposed cases
+        run: bash tools/ci_commit_proposed_cases.sh
