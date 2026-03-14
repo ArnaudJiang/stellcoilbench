@@ -47,6 +47,12 @@ jobs:
       cases_to_run_json: ${{ steps.filter.outputs.cases_to_run_json }}
       has_cases: ${{ steps.filter.outputs.has_cases }}
     steps:
+      - name: Install Git LFS
+        run: |
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          command -v git-lfs &>/dev/null || brew install git-lfs
+          git lfs install
+
       - name: Check out repository
         uses: actions/checkout@v4
         with:
@@ -71,6 +77,12 @@ jobs:
     runs-on: [macOS]
     timeout-minutes: 1440  # 24 hours
     steps:
+      - name: Install Git LFS
+        run: |
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          command -v git-lfs &>/dev/null || brew install git-lfs
+          git lfs install
+
       - name: Check out repository
         uses: actions/checkout@v4
         with:
@@ -119,6 +131,12 @@ jobs:
     runs-on: [macOS]
     timeout-minutes: 10
     steps:
+      - name: Install Git LFS
+        run: |
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          command -v git-lfs &>/dev/null || brew install git-lfs
+          git lfs install
+
       - name: Check out repository
         uses: actions/checkout@v4
         with:
@@ -157,6 +175,12 @@ jobs:
       ran_cases: ${{ steps.run.outputs.ran_cases }}
       has_pending: ${{ steps.pending.outputs.has_pending }}
     steps:
+      - name: Install Git LFS
+        run: |
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          command -v git-lfs &>/dev/null || brew install git-lfs
+          git lfs install
+
       - name: Check out repository
         uses: actions/checkout@v4
         with:
@@ -209,6 +233,12 @@ jobs:
       github.repository == 'akaptano/stellcoilbench'
     runs-on: [macOS]
     steps:
+      - name: Install Git LFS
+        run: |
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          command -v git-lfs &>/dev/null || brew install git-lfs
+          git lfs install
+
       - name: Check out repository
         uses: actions/checkout@v4
         with:
