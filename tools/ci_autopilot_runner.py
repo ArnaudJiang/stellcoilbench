@@ -92,6 +92,9 @@ def _dump_log(log_path: Path, tail: int | None = None) -> None:
 
 def main() -> int:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
+    # Clear old logs from previous runs so "Show logs on failure" only shows current run.
+    for old_log in LOG_DIR.glob("*.log"):
+        old_log.unlink(missing_ok=True)
     STATUS_FILE.write_text("")
     pending = sorted(PENDING_DIR.glob("*.json"))[:MAX_CASES]
     if not pending:
