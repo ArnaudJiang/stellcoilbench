@@ -56,6 +56,18 @@ jobs:
           curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_install_git_lfs.sh" | bash
           curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/tools/ci_setup_lfs_ssh.sh" | bash
 
+      - name: Debug LFS setup (remove after fixing)
+        if: always()
+        env:
+          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+        run: |
+          echo "HOME=$HOME"
+          echo "TMPDIR=$TMPDIR"
+          echo "LFS_DEPLOY_KEY set: $([ -n \"${LFS_DEPLOY_KEY:-}\" ] && echo yes || echo no)"
+          echo "LFS_DEPLOY_KEY length: ${#LFS_DEPLOY_KEY}"
+          ls -la "${TMPDIR:-/tmp}"/lfs_deploy_key 2>/dev/null || echo "Key file not found"
+          grep -A4 'Host github-lfs' "$HOME/.ssh/config" 2>/dev/null || echo "github-lfs not in config"
+
       - name: Check out repository
         uses: actions/checkout@v4
         with:
