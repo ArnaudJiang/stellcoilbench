@@ -40,6 +40,8 @@ jobs:
           sudo apt-get install -y build-essential gfortran openmpi-bin libopenmpi-dev libnetcdf-dev libnetcdff-dev liblapack-dev libscalapack-mpi-dev libhdf5-dev libhdf5-serial-dev git m4 libfftw3-dev libboost-all-dev libopenblas-dev libgsl-dev
 
       - name: Check out repository (exclude submissions to avoid disk space)
+        env:
+          GIT_LFS_SKIP_SMUDGE: "1"  # Skip LFS fetch; many OIDs 404 (unrecoverable). Lint/tests don't need blobs.
         run: |
           git clone --filter=blob:none --no-checkout --depth 1 --sparse \
             "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" .
