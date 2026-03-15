@@ -45,7 +45,7 @@ jobs:
         run: |
           git clone --filter=blob:none --no-checkout --depth 1 --sparse \
             "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" .
-          git sparse-checkout set --no-cone "/*" "!/submissions/"
+          git sparse-checkout set --no-cone "/*" "!/submissions/" "!/cases/done/"
           git checkout ${{ github.sha }}
           mkdir -p submissions
 

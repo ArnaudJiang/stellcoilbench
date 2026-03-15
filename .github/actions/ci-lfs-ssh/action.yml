@@ -2,12 +2,15 @@
 # Run before git push that may include LFS content.
 #
 # Requires env: LFS_DEPLOY_KEY (from secrets)
-# Expects: repo checked out (runs tools/ci_setup_lfs_ssh.sh)
+# Optional env: DEPLOY_KEY (main repo key) — when both set, creates combined
+# SSH config so core.sshCommand (from actions/checkout) is overridden and
+# each host uses the correct key; fixes LFS push "Permission denied to deploy key".
 #
 # Usage:
 #   - uses: ./.github/actions/ci-lfs-ssh
 #     env:
 #       LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+#       DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}  # optional; pass for combined config
 name: CI LFS SSH setup
 description: Configure SSH for Git LFS push to stellcoilbench-lfs
 runs:

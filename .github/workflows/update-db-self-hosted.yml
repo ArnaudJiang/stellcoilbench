@@ -110,6 +110,7 @@ jobs:
 
       - uses: ./.github/actions/ci-lfs-ssh
         env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
           LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
 
       - name: Commit all submissions
@@ -149,6 +150,7 @@ jobs:
 
       - uses: ./.github/actions/ci-lfs-ssh
         env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
           LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
 
       - name: Commit leaderboard
@@ -200,6 +202,7 @@ jobs:
 
       - uses: ./.github/actions/ci-lfs-ssh
         env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
           LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
 
       - name: Commit autopilot results and update leaderboard
@@ -255,6 +258,7 @@ jobs:
 
       - uses: ./.github/actions/ci-lfs-ssh
         env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
           LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
 
       - name: Commit proposed cases
