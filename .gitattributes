@@ -10,8 +10,7 @@
 docs/leaderboard.rst merge=theirs
 
 # LFS for submissions/ large files (VTK, plots).
-# Uses dedicated repo akaptano/stellcoilbench-lfs — forks cannot push (no write access).
-# See docs/forking.md for fork owners who want to add submissions.
+# Blobs live in main repo's LFS storage. See docs/forking.md for fork clone options.
 submissions/**/*.vtu filter=lfs diff=lfs merge=lfs -text
 submissions/**/*.vts filter=lfs diff=lfs merge=lfs -text
 submissions/**/*.png filter=lfs diff=lfs merge=lfs -text

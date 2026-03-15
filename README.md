@@ -55,12 +55,12 @@ python tools/build_context.py | python -m json.tool      # Inspect context
 
 ## Submissions and Git LFS
 
-Large files (VTU, VTS, PNG, PDF, and large JSON) in `submissions/` and `cases/done/` are stored with Git LFS. A dedicated LFS repo (`stellcoilbench-lfs`) holds the blobs; only upstream maintainers can push. Fork pulls work; fork pushes to upstream LFS are blocked (403).
+Large files (VTU, VTS, PNG, PDF, and large JSON) in `submissions/` and `cases/done/` are stored with Git LFS in the main repo. Forks pushing to their fork use the fork's LFS storage by default.
 
 - **Clone with LFS:** `git clone` + `git lfs pull` (or ensure `git lfs install` ran)
 - **Code-only clone:** `GIT_LFS_SKIP_SMUDGE=true git clone ...` (skips ~17 GB)
 
-See `docs/forking.md` for fork owners who want to push their own submissions to their own LFS backend.
+See `docs/forking.md` for fork clone options and adding submissions.
 
 ## Documentation
 

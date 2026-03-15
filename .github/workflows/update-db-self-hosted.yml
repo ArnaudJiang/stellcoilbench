@@ -109,11 +109,6 @@ jobs:
         with:
           log_dir: /tmp/stellcoilbench_logs
 
-      - uses: ./.github/actions/ci-lfs-ssh
-        env:
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
-          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
-
       - name: Commit all submissions
         if: always()
         run: bash tools/ci_commit_benchmark_submissions.sh
@@ -148,11 +143,6 @@ jobs:
           run: |
             echo "=== Generating leaderboard ==="
             stellcoilbench update-db
-
-      - uses: ./.github/actions/ci-lfs-ssh
-        env:
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
-          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
 
       - name: Commit leaderboard
         run: bash tools/ci_commit_leaderboard.sh
@@ -200,11 +190,6 @@ jobs:
         if: failure()
         with:
           log_dir: /tmp/autopilot_logs
-
-      - uses: ./.github/actions/ci-lfs-ssh
-        env:
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
-          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
 
       - name: Commit autopilot results and update leaderboard
         if: always() && steps.pending.outputs.has_pending == 'true'
@@ -256,11 +241,6 @@ jobs:
         with:
           env: ${{ env.CONDA_ENV }}
           run: bash tools/ci_propose_batch_wrapper.sh
-
-      - uses: ./.github/actions/ci-lfs-ssh
-        env:
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
-          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
 
       - name: Commit proposed cases
         run: bash tools/ci_commit_proposed_cases.sh

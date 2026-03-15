@@ -2,13 +2,9 @@
 
 This guide explains how to fork StellCoilBench and work with Git LFS, which is used for large files in `submissions/` and `cases/done/` (VTK meshes, plots, JSON).
 
-## How LFS Fork Isolation Works
+## LFS on Main
 
-Submissions and autopilot results in `cases/done/` use **Git LFS** with a dedicated storage repo (`stellcoilbench-lfs`) that only the upstream owner has write access to. This ensures:
-
-- **Forks cannot push to upstream's LFS** — attempts fail with 403 Forbidden.
-- **Forks can pull** — LFS objects are readable by everyone.
-- **Upstream quota is protected** — fork contributors cannot run up the owner's LFS bill.
+Submissions and autopilot results use **Git LFS** with storage in the main repository. When you push to your fork, LFS objects go to your fork's LFS storage by default; upstream's quota is not used.
 
 ## Clone Options
 
@@ -30,22 +26,22 @@ cd stellcoilbench
 
 Use this when you only need source code, tests, or cases — not submission data.
 
-### Verifying LFS (post-migration)
+### Verifying LFS
 
-After cloning, confirm LFS objects are present: `git lfs fsck` (no missing/deleted) and `git lfs ls-files | head` (shows tracked files). CI needs `LFS_DEPLOY_KEY` in stellcoilbench repo secrets for runs that add submissions.
+After cloning, confirm LFS objects are present: `git lfs fsck` (no missing/deleted) and `git lfs ls-files | head` (shows tracked files).
 
 ### Upstream CI and unrecoverable LFS objects
 
-Upstream CI sets `GIT_LFS_SKIP_SMUDGE=1` so that LFS objects are never fetched during checkout. This workaround exists because many LFS OIDs in the history are unrecoverable (404) and would cause `git lfs pull` to fail. CI jobs do not need the blob content: leaderboard generation reads `results.json` and `.zip` files (not LFS), and benchmark/autopilot jobs only create new output. LFS push still works when committing new submissions.
+Upstream CI sets `GIT_LFS_SKIP_SMUDGE=1` so that LFS objects are never fetched during checkout. This workaround exists because some historic LFS OIDs may be unrecoverable (404) and would cause `git lfs pull` to fail. CI jobs do not need the blob content: leaderboard generation reads `results.json` and `.zip` files (not LFS), and benchmark/autopilot jobs only create new output. LFS push still works when committing new submissions. `.lfsconfig` sets `skipdownloaderrors = true` so fetches continue on 404.
 
 ## Adding Submissions to Your Fork
 
-By default, your fork's `.lfsconfig` points to the upstream LFS repo. **You cannot push to it** (no write access). To add your own submissions from your fork:
+When you push to your fork, LFS objects are stored in your fork's LFS storage by default. No `.lfsconfig` override is needed.
 
-### Option A: Use your own GitHub LFS repo (simplest)
+If you want to use a separate LFS backend (e.g. to isolate quota or use S3):
 
-1. Create a new repo under your account (e.g. `yourname/stellcoilbench-lfs-storage`).
-2. Override `.lfsconfig` in your fork:
+1. Create a new repo under your account (e.g. `yourname/stellcoilbench-lfs-storage`), or set up S3/GCS/R2 with an LFS server.
+2. Add `.lfsconfig` to your fork:
 
 ```ini
 [lfs]
@@ -53,25 +49,13 @@ By default, your fork's `.lfsconfig` points to the upstream LFS repo. **You cann
 ```
 
 3. Commit and push `.lfsconfig` to your fork.
-4. Push as normal. LFS objects go to your repo; your quota is used, not upstream's.
-
-### Option B: S3 or other LFS server
-
-1. Set up an LFS backend (S3 + LFS server, GCS, R2, etc.).
-2. Add `.lfsconfig` to your fork:
-
-```ini
-[lfs]
-    url = https://your-lfs-server.example.com
-```
-
-3. Commit and push. Ensure your server accepts authenticated pushes from your CI/local Git.
+4. Push as normal. LFS objects go to your configured backend.
 
 ## Fork CI
 
 - **Without submissions:** Use `GIT_LFS_SKIP_SMUDGE=1` or sparse checkout excluding `submissions/`.
-- **Upstream CI:** Uses `GIT_LFS_SKIP_SMUDGE=1` because many historic LFS objects are unrecoverable (404). CI-critical paths (`results.json`, `.zip`) are not LFS, so jobs run correctly with pointer files. LFS push for new submissions still works via deploy key + stellcoilbench-lfs.
-- **With submissions:** Pull LFS (`git lfs pull`) and use your own LFS backend (Option A or B above) so you do not hit upstream's quota.
+- **Upstream CI:** Uses `GIT_LFS_SKIP_SMUDGE=1` because some historic LFS objects may be unrecoverable (404). CI-critical paths (`results.json`, `.zip`) are not LFS, so jobs run correctly with pointer files. LFS push for new submissions uses `DEPLOY_KEY` (main repo).
+- **With submissions:** Push to your fork; LFS goes to your fork's storage. Or use your own LFS backend via `.lfsconfig`.
 
 ## Contributing to Upstream
 

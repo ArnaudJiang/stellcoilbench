@@ -62,8 +62,8 @@ The package lives in `src/stellcoilbench/` with these core modules:
 
 ## Git LFS and Forks
 
-- **Submissions** use Git LFS for `.vtu`, `.vts`, `.png`, `.pdf` under `submissions/`. Blobs live in dedicated repo `stellcoilbench-lfs`; only upstream has write access.
-- **Fork isolation:** Forks cannot push to upstream LFS (403). Fork owners who add submissions must add `.lfsconfig` pointing to their own LFS backend. See `docs/forking.md`.
+- **Submissions** use Git LFS for `.vtu`, `.vts`, `.png`, `.pdf` under `submissions/`. Blobs live in the main repo's LFS storage. Forks pushing to their fork use the fork's LFS storage by default.
+- **Forking:** See `docs/forking.md` for clone options and adding submissions from a fork.
 
 - **`validate_config/`** — Validates case YAML and autopilot JSON configs with detailed error reporting.
 

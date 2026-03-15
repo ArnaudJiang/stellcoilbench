@@ -91,11 +91,6 @@ jobs:
         if: failure()
         env:
           LOG_DIR: ${{ steps.slurm_submit.outputs.log_dir }}
-      - uses: ./.github/actions/ci-lfs-ssh
-        if: always()
-        env:
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
-          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
       - run: bash tools/ci_commit_benchmark_submissions.sh
         if: always()
         env:
