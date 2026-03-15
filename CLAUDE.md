@@ -113,3 +113,5 @@ Use `--local` for this repo only (default) or `--global` to apply everywhere. No
 - **`ci.yml`** — Runs on push/PR: lint with ruff, run full test suite on Ubuntu 24.04 with Python 3.13
 - **`case-only-pr.yml`** — Case-only PR validation: when only `cases/` and policy files change, validates case YAMLs and can auto-approve/merge
 - **`update-db-self-hosted.yml`** — Self-hosted runner: runs benchmark cases (up to 8 parallel, 24h timeout), updates leaderboards, and runs the nonstop autopilot loop (triggered every 10 minutes via cron)
+
+**Repository variables** (Settings → Secrets and variables → Actions → Variables): `CI_BENCHMARK_REPO` (default `akaptano/stellcoilbench`, set for forks); `CONDA_ROOT`, `SIMPLE_EXECUTABLE` (override self-hosted paths).

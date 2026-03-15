@@ -1,5 +1,5 @@
 # .github/workflows/update-db-viper.yml
-# Viper (MPCDF) HPC: benchmark cases + nonstop autopilot via SLURM job arrays.
+# Viper (MPCDF) HPC: benchmark cases via SLURM job arrays.
 #
 # The self-hosted runner lives on a Viper LOGIN NODE. Heavy compute is
 # dispatched to SLURM compute nodes via sbatch. Results are committed
@@ -9,9 +9,7 @@
 #
 # TRIGGER -> JOBS:
 #   push (code/cases): determine-cases -> run-cases -> update-leaderboard
-#   push (proposer): run-autopilot-cases -> propose-autopilot-batch (nonstop)
-#   push (runner done only): paths-ignore
-#   schedule (10 min) / dispatch: run-autopilot-cases -> propose-autopilot-batch
+#   workflow_dispatch: manual run of benchmark
 name: StellCoilBench CI (Viper)
 
 on:
@@ -27,8 +25,6 @@ on:
       - 'policy/llm_reasoning_history.json'
       - 'policy/autopilot_failures.json'
       - 'PAUSE_AUTORUN'
-  schedule:
-    - cron: '*/10 * * * *'   # autopilot: every 10 minutes (matches original)
   workflow_dispatch:
 
 concurrency:
@@ -38,20 +34,18 @@ concurrency:
 permissions:
   contents: write
 
+# vars.CI_BENCHMARK_REPO - repo that runs benchmark (default: akaptano/stellcoilbench).
+# Set in Settings > Secrets and variables > Actions > Variables.
+# Note: env context is not available in job-level if; use vars directly.
 env:
   GIT_LFS_SKIP_SMUDGE: "1"
   SLURM_CPUS: "8"
   SLURM_MEM: "10000M"
   SLURM_TIME_CASES: "00:30:00"
-  # Autopilot: single job on 1 node, N tasks x 1 core (original used 256000M total)
-  SLURM_AUTOPILOT_CPUS_PER_TASK: "1"
-  SLURM_AUTOPILOT_MEM: "256000M"
-  SLURM_AUTOPILOT_MEM_PER_TASK: "30000M"
-  SLURM_AUTOPILOT_CAP: "128"
 
 jobs:
   determine-cases:
-    if: github.repository == 'akaptano/stellcoilbench' && github.event_name == 'push'
+    if: github.repository == (vars.CI_BENCHMARK_REPO || 'akaptano/stellcoilbench') && github.event_name == 'push'
     runs-on: [viper]
     outputs:
       cases_to_run_json: ${{ steps.filter.outputs.cases_to_run_json }}
@@ -69,7 +63,7 @@ jobs:
   run-cases:
     needs: [determine-cases]
     if: >
-      github.repository == 'akaptano/stellcoilbench' &&
+      github.repository == (vars.CI_BENCHMARK_REPO || 'akaptano/stellcoilbench') &&
       github.event_name == 'push' &&
       needs.determine-cases.outputs.has_cases == 'true'
     runs-on: [viper]
@@ -97,6 +91,11 @@ jobs:
         if: failure()
         env:
           LOG_DIR: ${{ steps.slurm_submit.outputs.log_dir }}
+      - uses: ./.github/actions/ci-lfs-ssh
+        if: always()
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
       - run: bash tools/ci_commit_benchmark_submissions.sh
         if: always()
         env:
@@ -106,7 +105,7 @@ jobs:
     needs: [determine-cases, run-cases]
     if: >
       always() &&
-      github.repository == 'akaptano/stellcoilbench' &&
+      github.repository == (vars.CI_BENCHMARK_REPO || 'akaptano/stellcoilbench') &&
       github.event_name == 'push' &&
       needs.determine-cases.outputs.has_cases == 'true'
     runs-on: [viper]
@@ -122,62 +121,3 @@ jobs:
         with:
           run: stellcoilbench update-db
       - run: bash tools/ci_commit_leaderboard.sh
-
-  run-autopilot-cases:
-    if: false && github.repository == 'akaptano/stellcoilbench'  # Autopilot runs on Self-Hosted only
-    runs-on: [viper]
-    timeout-minutes: 120
-    outputs:
-      ran_cases: ${{ steps.slurm_submit.outputs.ran_cases }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          lfs: false
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Pull and check PAUSE_AUTORUN
-        id: pause_check
-        run: |
-          git pull origin main
-          echo "paused=$([ -f PAUSE_AUTORUN ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-      - run: bash tools/ci_has_pending.sh
-        id: pending
-        if: steps.pause_check.outputs.paused != 'true'
-      - uses: ./.github/actions/ci-viper-activate
-        id: slurm_submit
-        if: steps.pause_check.outputs.paused != 'true' && steps.pending.outputs.has_pending == 'true'
-        with:
-          run: bash tools/ci_slurm_submit_autopilot.sh
-      - run: bash tools/ci_slurm_wait.sh
-        if: steps.pause_check.outputs.paused != 'true' && steps.pending.outputs.has_pending == 'true'
-        env:
-          JOB_ID: ${{ steps.slurm_submit.outputs.slurm_job_id }}
-          LOG_DIR: ${{ steps.slurm_submit.outputs.log_dir }}
-      - uses: actions/upload-artifact@v4
-        if: steps.pause_check.outputs.paused != 'true' && steps.pending.outputs.has_pending == 'true'
-        with:
-          name: slurm-logs-run-${{ github.run_id }}
-          path: ${{ steps.slurm_submit.outputs.log_dir }}
-      - uses: ./.github/actions/ci-viper-activate
-        if: always() && steps.pause_check.outputs.paused != 'true' && steps.pending.outputs.has_pending == 'true'
-        with:
-          run: bash tools/ci_commit_autopilot_results.sh
-
-  propose-autopilot-batch:
-    needs: [run-autopilot-cases]
-    if: false && always() && github.repository == 'akaptano/stellcoilbench'  # Autopilot runs on Self-Hosted only
-    runs-on: [viper]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          lfs: false
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - run: bash tools/ci_pull.sh --no-rebase
-      - uses: ./.github/actions/ci-viper-activate
-        env:
-          CI_PROPOSE_BATCH_SIZE: "128"
-          CI_PROPOSE_USE_LLM: "0"
-        with:
-          run: bash tools/ci_propose_batch_wrapper.sh
-      - run: bash tools/ci_commit_proposed_cases.sh

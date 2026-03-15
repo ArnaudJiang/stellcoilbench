@@ -1,6 +1,7 @@
 # Case-only PR: validate, auto-approve, enable auto-merge
-# Runs when PR touches cases/. Validates case YAMLs; if only case files
-# changed and validation passes, approves and enables auto-merge.
+# Runs when PR touches cases/ or plasma_surfaces/. Validates case YAMLs and
+# plasma surface files; if only those files changed and validation passes,
+# approves and enables auto-merge.
 name: Case-only PR
 
 on:
@@ -8,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "cases/**"
+      - "plasma_surfaces/**"
       - ".github/CASE_ONLY_MAINTAINERS"
       - ".github/workflows/case-only-pr.yml"
 
@@ -64,62 +66,7 @@ jobs:
         env:
           CHANGED_FILES: ${{ steps.changed.outputs.changed }}
           MAINTAINER_BYPASS: ${{ steps.maintainer.outputs.bypass }}
-        run: |
-          set -e
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "No changed files (possible merge conflict or empty diff)"
-            exit 0
-          fi
-
-          NON_CASE=""
-          CASE_YAMLS=""
-          while IFS= read -r file; do
-            [ -z "$file" ] && continue
-            case "$file" in
-              cases/*.yaml)
-                CASE_YAMLS="${CASE_YAMLS}${file}"$'\n'
-                ;;
-              cases/pending/*.yaml)
-                CASE_YAMLS="${CASE_YAMLS}${file}"$'\n'
-                ;;
-              *)
-                if [ "$MAINTAINER_BYPASS" != "true" ]; then
-                  NON_CASE="${NON_CASE}${file}"$'\n'
-                fi
-                ;;
-            esac
-          done <<< "$CHANGED_FILES"
-
-          if [ -n "$NON_CASE" ]; then
-            echo "Not a case-only PR. Files outside cases/:"
-            echo "$NON_CASE"
-            echo "Skipping auto-merge."
-            exit 0
-          fi
-
-          if [ -z "$CASE_YAMLS" ]; then
-            echo "No case YAML files changed."
-            exit 0
-          fi
-
-          python -c "
-          import sys
-          from pathlib import Path
-          from stellcoilbench.validate_config import validate_case_yaml_file
-
-          changed = sys.argv[1].strip().split('\n') if sys.argv[1] else []
-          changed = [f for f in changed if f.endswith('.yaml') and Path(f).exists()]
-          errors = []
-          for f in changed:
-              errs = validate_case_yaml_file(Path(f))
-              if errs:
-                  errors.extend(errs)
-          if errors:
-              for e in errors:
-                  print(f'ERROR: {e}')
-              sys.exit(1)
-          print('All case files valid.')
-          " "$CASE_YAMLS"
+        run: python -m tools.ci_case_only_validate --ci
 
       - name: Auto-approve and enable auto-merge
         if: success() && github.event.pull_request.head.repo.full_name == github.repository

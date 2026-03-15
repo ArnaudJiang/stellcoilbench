@@ -93,14 +93,8 @@ def case_has_successful_submission(case_file_path: str | Path) -> bool:
 
 
 def discover_cases(cases_dir: Path) -> List[str]:
-    """Find .yaml case files, excluding done/ and pending/."""
-    cases: List[str] = []
-    for p in sorted(cases_dir.rglob("*.yaml")):
-        rel = str(p.relative_to(cases_dir))
-        if rel.startswith("done/") or rel.startswith("pending/"):
-            continue
-        cases.append(str(p))
-    return cases
+    """Find top-level .yaml case files (excludes done/ and pending/; nested cases excluded)."""
+    return [str(p) for p in sorted(cases_dir.glob("*.yaml"))]
 
 
 def main() -> int:

@@ -30,17 +30,18 @@ concurrency:
 permissions:
   contents: write
 
+# Repository variables (Settings > Secrets and variables > Actions > Variables): CI_BENCHMARK_REPO, CONDA_ROOT, SIMPLE_EXECUTABLE
 env:
   CONDA_ENV: stellcoilbench_ci
-  CONDA_ROOT: /Users/akaptanoglu/anaconda3  # for self-hosted Mac runner; adjust if conda lives elsewhere
-  SIMPLE_EXECUTABLE: /Users/akaptanoglu/simple/build/simple.x
+  CONDA_ROOT: ${{ vars.CONDA_ROOT || '/Users/akaptanoglu/anaconda3' }}
+  SIMPLE_EXECUTABLE: ${{ vars.SIMPLE_EXECUTABLE || '/Users/akaptanoglu/simple/build/simple.x' }}
   GIT_LFS_SKIP_SMUDGE: "1"
 
 jobs:
   # ---- Standard benchmark path (only on push to main) ----
   determine_cases:
     if: >
-      github.repository == 'akaptano/stellcoilbench' &&
+      github.repository == (vars.CI_BENCHMARK_REPO || 'akaptano/stellcoilbench') &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main'
     runs-on: [macOS]
@@ -69,7 +70,7 @@ jobs:
   run_cases:
     needs: [determine_cases]
     if: >
-      github.repository == 'akaptano/stellcoilbench' &&
+      github.repository == (vars.CI_BENCHMARK_REPO || 'akaptano/stellcoilbench') &&
       github.event_name == 'push' &&
       needs.determine_cases.outputs.has_cases == 'true'
     runs-on: [macOS]
@@ -121,7 +122,7 @@ jobs:
     needs: [determine_cases, run_cases, run_autopilot_cases]
     if: >
       always() &&
-      github.repository == 'akaptano/stellcoilbench' &&
+      github.repository == (vars.CI_BENCHMARK_REPO || 'akaptano/stellcoilbench') &&
       (needs.determine_cases.outputs.has_cases == 'true' || needs.run_autopilot_cases.outputs.has_pending == 'true')
     runs-on: [macOS]
     timeout-minutes: 10
@@ -160,7 +161,7 @@ jobs:
   # Nonstop CI autopilot: run pending cases from cases/pending/*.json
   # =========================================================================
   run_autopilot_cases:
-    if: github.repository == 'akaptano/stellcoilbench'
+    if: github.repository == (vars.CI_BENCHMARK_REPO || 'akaptano/stellcoilbench')
     runs-on: [macOS]
     timeout-minutes: 90  # Must be > max per-case timeout (60m) + buffer for commit
     outputs:
@@ -223,7 +224,7 @@ jobs:
     needs: [run_autopilot_cases]
     if: >
       always() &&
-      github.repository == 'akaptano/stellcoilbench' &&
+      github.repository == (vars.CI_BENCHMARK_REPO || 'akaptano/stellcoilbench') &&
       needs.run_autopilot_cases.result == 'success'
     runs-on: [macOS]
     steps:

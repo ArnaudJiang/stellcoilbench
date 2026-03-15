@@ -65,8 +65,9 @@ jobs:
         uses: ./.github/actions/setup-stellcoilbench
 
       - name: Run ruff
-        run: ruff check src/ tests/ --ignore F403,F405
+        run: ruff check src/ tests/ tools/ knowledge/ --ignore F403,F405
 
+      # Only top-level cases/*.yaml are validated; nested cases are excluded by design.
       - name: Validate case YAML files
         run: |
           python -c "
