@@ -107,10 +107,12 @@ def _extract_coil_params_from_coils_json(
     if coils_json_path is None:
         return out
     try:
-        from simsopt import load
+        from stellcoilbench.post_processing import load_bfield_from_coils_json
+        from stellcoilbench.post_processing._coil_io import _get_coils_from_bfield
 
-        coils = load(str(coils_json_path))
-        if not coils or len(coils) == 0:
+        bfield = load_bfield_from_coils_json(coils_json_path)
+        coils = _get_coils_from_bfield(bfield)
+        if not coils:
             return out
         if (
             "coil_order" not in existing_params
