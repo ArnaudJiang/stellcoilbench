@@ -1,39 +1,22 @@
-# Composite action: Check out repo first (so local actions resolve), then install Git LFS.
+# Composite action: Install Git LFS.
+# Requires: actions/checkout run first (workflow step before this action).
 # LFS SSH (for push) is configured by ci-lfs-ssh before commits.
 #
-# Checkout must run first: if it fails later, steps with if: failure() need local
-# actions (e.g. ci-show-logs-on-failure) which live in the repo.
-#
 # Requires job env: CONDA_ROOT, CONDA_ENV
-# Requires input: deploy_key for checkout (secrets.DEPLOY_KEY)
 #
 # Usage:
-#   - uses: ./.github/actions/ci-job-setup
-#     env:
-#       LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+#   - uses: actions/checkout@v4
 #     with:
-#       deploy_key: ${{ secrets.DEPLOY_KEY }}
-name: CI job setup (checkout + LFS)
-description: Check out repository, then install Git LFS
-inputs:
-  deploy_key:
-    description: SSH deploy key for checkout (secrets.DEPLOY_KEY)
-    required: true
-  ref:
-    description: Branch or ref to check out
-    required: false
-    default: main
+#       ref: main
+#       fetch-depth: 0
+#       lfs: false
+#       ssh-key: ${{ secrets.DEPLOY_KEY }}
+#   - uses: ./.github/actions/ci-job-setup
+name: CI job setup (LFS install)
+description: Install Git LFS (checkout must run first in workflow)
 runs:
   using: composite
   steps:
-    - name: Check out repository
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ inputs.ref }}
-        fetch-depth: 0
-        lfs: false
-        ssh-key: ${{ inputs.deploy_key }}
-
     - name: Install Git LFS
       shell: bash
       run: |

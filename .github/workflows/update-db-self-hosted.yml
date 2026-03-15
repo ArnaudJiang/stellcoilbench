@@ -48,11 +48,14 @@ jobs:
       cases_to_run_json: ${{ steps.filter.outputs.cases_to_run_json }}
       has_cases: ${{ steps.filter.outputs.has_cases }}
     steps:
-      - uses: ./.github/actions/ci-job-setup
-        env:
-          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+      - uses: actions/checkout@v4
         with:
-          deploy_key: ${{ secrets.DEPLOY_KEY }}
+          ref: main
+          fetch-depth: 0
+          lfs: false
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+
+      - uses: ./.github/actions/ci-job-setup
 
       - name: Filter cases to run
         id: filter
@@ -70,11 +73,14 @@ jobs:
     runs-on: [macOS]
     timeout-minutes: 1440  # 24 hours
     steps:
-      - uses: ./.github/actions/ci-job-setup
-        env:
-          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+      - uses: actions/checkout@v4
         with:
-          deploy_key: ${{ secrets.DEPLOY_KEY }}
+          ref: main
+          fetch-depth: 0
+          lfs: false
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+
+      - uses: ./.github/actions/ci-job-setup
 
       - uses: ./.github/actions/ci-install-stellcoilbench
         with:
@@ -115,11 +121,14 @@ jobs:
     runs-on: [macOS]
     timeout-minutes: 10
     steps:
-      - uses: ./.github/actions/ci-job-setup
-        env:
-          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+      - uses: actions/checkout@v4
         with:
-          deploy_key: ${{ secrets.DEPLOY_KEY }}
+          ref: main
+          fetch-depth: 0
+          lfs: false
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+
+      - uses: ./.github/actions/ci-job-setup
 
       - name: Pull latest changes
         run: bash tools/ci_pull.sh --no-rebase
@@ -150,11 +159,14 @@ jobs:
       ran_cases: ${{ steps.run.outputs.ran_cases }}
       has_pending: ${{ steps.pending.outputs.has_pending }}
     steps:
-      - uses: ./.github/actions/ci-job-setup
-        env:
-          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+      - uses: actions/checkout@v4
         with:
-          deploy_key: ${{ secrets.DEPLOY_KEY }}
+          ref: main
+          fetch-depth: 0
+          lfs: false
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+
+      - uses: ./.github/actions/ci-job-setup
 
       - name: Check for pending cases
         id: pending
@@ -204,11 +216,14 @@ jobs:
       needs.run_autopilot_cases.result == 'success'
     runs-on: [macOS]
     steps:
-      - uses: ./.github/actions/ci-job-setup
-        env:
-          LFS_DEPLOY_KEY: ${{ secrets.LFS_DEPLOY_KEY }}
+      - uses: actions/checkout@v4
         with:
-          deploy_key: ${{ secrets.DEPLOY_KEY }}
+          ref: main
+          fetch-depth: 0
+          lfs: false
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+
+      - uses: ./.github/actions/ci-job-setup
 
       - name: Pull latest (after autopilot run)
         run: bash tools/ci_pull.sh --no-rebase
