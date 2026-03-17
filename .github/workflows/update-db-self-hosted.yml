@@ -147,6 +147,19 @@ jobs:
       - name: Commit leaderboard
         run: bash tools/ci_commit_leaderboard.sh
 
+      - name: Trigger Read the Docs build
+        if: success()
+        continue-on-error: true
+        run: |
+          if [ -n "${{ secrets.READTHEDOCS_API_TOKEN }}" ]; then
+            curl -sSf -X POST \
+              -H "Authorization: Token ${{ secrets.READTHEDOCS_API_TOKEN }}" \
+              https://app.readthedocs.org/api/v3/projects/stellcoilbench/versions/latest/builds/
+            echo "RTD build triggered"
+          else
+            echo "READTHEDOCS_API_TOKEN not set, skipping RTD trigger"
+          fi
+
   # =========================================================================
   # Nonstop CI autopilot: run pending cases from cases/pending/*.json
   # =========================================================================

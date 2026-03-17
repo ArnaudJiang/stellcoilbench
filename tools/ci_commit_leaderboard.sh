@@ -4,7 +4,11 @@ set -euo pipefail
 
 git config --local user.email "action@github.com"
 git config --local user.name "$GITHUB_ACTOR"
-git add docs/leaderboard.rst 2>/dev/null || true
+git add -f docs/leaderboard.rst \
+         docs/leaderboard/metric_definitions.rst \
+         docs/leaderboard/surface_specific.rst \
+         docs/leaderboard/reactor_scale.rst \
+         docs/leaderboard.json 2>/dev/null || true
 if git diff --staged --quiet; then
   echo "No leaderboard changes to commit"
 else
