@@ -16,6 +16,8 @@ from stellcoilbench.update_db._viz_links import (
 from stellcoilbench.update_db.submission_io import (
     _extract_coil_params_from_case,
     _extract_primary_score,
+    _flatten_continuation_metrics_for_reactor,
+    _reactor_scale_completeness,
 )
 
 
@@ -193,3 +195,62 @@ class TestResolveVisualizationLinks:
         entry = {"path": "/absolute/nonexistent/path/results.json", "rank": 1}
         result = resolve_visualization_links(entry, tmp_path)
         assert result == ("—", "", "—", "")
+
+
+class TestFlattenContinuationMetrics:
+    """Tests for _flatten_continuation_metrics_for_reactor."""
+
+    def test_returns_metrics_unchanged_when_flat(self) -> None:
+        metrics = {
+            "target_B_field": 1.0,
+            "_cached_thresholds": {"major_radius": 1.0, "minor_radius": 0.2},
+            "final_min_cc_separation": 0.1,
+        }
+        result = _flatten_continuation_metrics_for_reactor(metrics)
+        assert result is metrics
+        assert result["target_B_field"] == 1.0
+
+    def test_merges_last_continuation_step_when_flat_missing(self) -> None:
+        metrics = {
+            "continuation_results": [
+                {"final_squared_flux": 0.01},
+                {
+                    "target_B_field": 1.0,
+                    "_cached_thresholds": {"minor_radius": 0.2},
+                    "final_min_cc_separation": 0.15,
+                },
+            ],
+        }
+        result = _flatten_continuation_metrics_for_reactor(metrics)
+        assert result["target_B_field"] == 1.0
+        assert result["final_min_cc_separation"] == 0.15
+        # Only last step's keys are merged; final_squared_flux is in first step only
+        assert "final_squared_flux" not in result or result["final_squared_flux"] == 0.01
+
+    def test_returns_empty_unchanged(self) -> None:
+        assert _flatten_continuation_metrics_for_reactor({}) == {}
+        assert _flatten_continuation_metrics_for_reactor(None) is None
+
+
+class TestReactorScaleCompleteness:
+    """Tests for _reactor_scale_completeness."""
+
+    def test_empty_returns_zero(self) -> None:
+        assert _reactor_scale_completeness({}) == 0
+        assert _reactor_scale_completeness(None) == 0
+
+    def test_excludes_reference_and_error(self) -> None:
+        rs = {
+            "reference": {"B_field": 5.7},
+            "error": "Could not determine",
+            "reactor_scale_min_cc_separation": 1.0,
+        }
+        assert _reactor_scale_completeness(rs) == 1
+
+    def test_counts_numeric_and_list_values(self) -> None:
+        rs = {
+            "reactor_scale_min_cc_separation": 1.0,
+            "N_turns_per_coil": [10, 20],
+            "reference": {},
+        }
+        assert _reactor_scale_completeness(rs) == 2

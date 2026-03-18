@@ -4,10 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from stellcoilbench.update_db._constraints import (
-    N_TURNS_MODEL,
-    REACTOR_SCALE_CONSTRAINTS,
-)
+from stellcoilbench.update_db._constraints import REACTOR_SCALE_CONSTRAINTS
 from stellcoilbench.update_db._writers_metric_defs import (
     _build_composite_score_lines,
     _build_constraint_table_lines,
@@ -39,7 +36,7 @@ class TestBuildConstraintTableLines:
     def test_hard_only_returns_hard_constraints(self) -> None:
         """Hard constraints have label, bound_str, desc keys."""
         rows = _build_constraint_table_lines(REACTOR_SCALE_CONSTRAINTS, hard_only=True)
-        assert len(rows) >= 3  # coils_linked, linking_number, N_turns, finite_build
+        assert len(rows) >= 3  # coils_linked, linking_number, finite_build
         for row in rows:
             assert "label" in row
             assert "bound_str" in row
@@ -70,7 +67,8 @@ class TestBuildHardConstraintsTable:
         lines = _build_hard_constraints_table()
         joined = "\n".join(lines)
         assert "Reactor-Scale Constraints" in joined
-        assert "Hard feasibility constraints" in joined
+        assert "Scaled to ARIES-CS" in joined
+        assert "Hard constraints" in joined
         assert "list-table" in joined
         assert "Constraint" in joined
         assert "Bound" in joined
@@ -84,7 +82,7 @@ class TestBuildSoftConstraintsTable:
         """Table includes header and soft constraint context."""
         lines = _build_soft_constraints_table()
         joined = "\n".join(lines)
-        assert "Soft engineering constraints" in joined
+        assert "Soft constraints" in joined
         assert "list-table" in joined
         assert "Metric" in joined
         assert "Direction" in joined
@@ -117,13 +115,15 @@ class TestBuildCompositeScoreLines:
 class TestBuildWindingPackModelLines:
     """Tests for _build_winding_pack_model_lines (template-based)."""
 
-    def test_n_turns_model_substituted(self) -> None:
-        """N_TURNS_MODEL is substituted in template."""
+    def test_winding_pack_soft_constraint_present(self) -> None:
+        """Winding pack template describes N_turns as soft constraint (bound 300)."""
         lines = _build_winding_pack_model_lines()
         joined = "\n".join(lines)
-        assert "{{N_TURNS_MODEL}}" not in joined
-        assert str(N_TURNS_MODEL) in joined
-        assert "Winding-Pack Turn-Count Model" in joined
+        assert "Winding-Pack Model" in joined
+        assert "Soft constraint" in joined
+        assert "300" in joined
+        assert "rewarded" in joined
+        assert "penalized" in joined
 
 
 class TestWriteMetricDefinitionsRst:

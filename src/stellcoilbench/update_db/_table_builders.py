@@ -371,13 +371,15 @@ def _build_reactor_scale_row_cells(
     row_parts: list[tuple[str, str]] = []
     row_parts.append(_score_cell(entry))
     row_parts.append(_int_metric_cell(metrics, "num_coils"))
-    row_parts.append(_int_metric_cell(metrics, "coil_order"))
+    fc_val = metrics.get("fourier_continuation_orders")
+    fc_str = str(fc_val) if fc_val is not None and str(fc_val) != "—" else "—"
+    row_parts.append((fc_str, fc_str if fc_str != "—" else ""))
 
     for k in rs_keys:
         raw_val = rs.get(k)
         if raw_val is None:
             raw_val = metrics.get(k)
-        val_str = _format_numeric_for_leaderboard(raw_val)
+        val_str = _format_numeric_for_leaderboard(raw_val, metric_key=k)
         disp = _format_metric_html(val_str, k, hard_metric_set, soft_metric_set)
         sort_val = (
             raw_val
@@ -407,7 +409,6 @@ def _build_reactor_scale_row_cells(
     row_parts.append((n_turns_disp, n_turns_sort))
 
     row_parts.append(_user_cell(entry))
-    row_parts.extend(_viz_link_cells(entry, repo_root, use_local_links=use_local_links))
 
     return row_parts
 

@@ -11,12 +11,14 @@ from importlib import resources
 from pathlib import Path
 from typing import Any, Iterable
 
-from ._constraints import N_TURNS_MODEL, REACTOR_SCALE_CONSTRAINTS
+from ._constraints import REACTOR_SCALE_CONSTRAINTS
 from ._formatting import (
+    _get_reactor_scale_display_order,
+    _metric_definition,
     _metric_detailed_definition,
     _metric_display_name,
+    _metric_shorthand,
 )
-from ._formatting import _get_reactor_scale_display_order
 
 __all__ = [
     "_write_metric_definitions_rst",
@@ -35,6 +37,7 @@ _CATEGORY_RULES: list[tuple[str, Any]] = [
             "curvature" in k.lower()
             or "length" in k.lower()
             or "arclength" in k.lower()
+            or "torsion" in k.lower()
             or k in ["coil_order", "num_coils", "fourier_continuation_orders"]
         ),
     ),
@@ -77,7 +80,15 @@ def _categorise_metrics(
     for key in combined_metric_keys:
         detailed_def = _metric_detailed_definition(key)
         if not detailed_def:
-            continue
+            # Fallback for metrics in METRIC_DEFINITIONS only
+            if _metric_definition(key) != _metric_display_name(key):
+                detailed_def = {
+                    "symbol": _metric_shorthand(key),
+                    "description": _metric_definition(key),
+                    "units": "",
+                }
+            else:
+                continue
         matched = False
         for cat_name, predicate in _CATEGORY_RULES:
             if predicate(key):
@@ -106,55 +117,39 @@ _CATEGORY_TITLES: list[tuple[str, str]] = [
 
 
 def _format_metric_def(key: str, def_dict: dict) -> list[str]:
-    """Format a single detailed metric definition into RST lines.
+    """Format a single metric definition as a one-line RST bullet.
+
+    Uses plain symbol (no bold) when it contains :math: role, since RST does
+    not support nesting interpreted text inside **bold**. Plain symbols use **.
 
     Parameters
     ----------
     key : str
         Internal metric key name.
     def_dict : dict
-        Dictionary with ``symbol``, ``title``, ``description``,
-        ``math_forms``, ``where``, ``units``, ``notes``.
+        Dictionary with ``symbol``, ``title``, ``description``, ``units``.
 
     Returns
     -------
     list[str]
-        Formatted RST lines.
+        Single formatted RST line (one-line definition).
     """
-    lines: list[str] = []
-    symbol = def_dict.get("symbol", "")
-    title = def_dict.get("title", _metric_display_name(key))
-    if symbol:
-        lines.append(f"**{title}** ({symbol})")
-    else:
-        lines.append(f"**{title}**")
-    lines.append("   " + def_dict.get("description", ""))
-    lines.append("   ")
-
-    math_forms = def_dict.get("math_forms", [])
-    if math_forms:
-        lines.append("   Mathematical form:")
-        lines.append("   ")
-        for math_form in math_forms:
-            lines.append("   .. math::")
-            lines.append(f"      {math_form}")
-            lines.append("   ")
-
-    where = def_dict.get("where")
-    if where:
-        lines.append(f"   {where}")
-        lines.append("   ")
-
+    symbol = def_dict.get("symbol", _metric_shorthand(key))
+    desc = def_dict.get("description", _metric_definition(key))
     units = def_dict.get("units", "")
+    # Truncate description to ~120 chars for one-liner
+    if len(desc) > 120:
+        desc = desc[:117].rsplit(" ", 1)[0] + "..."
+    # Do not wrap :math: in ** — RST cannot nest interpreted text in emphasis
+    if ":math:" in str(symbol):
+        symbol_part = f"{symbol}"
+    else:
+        symbol_part = f"**{symbol}**"
     if units:
-        lines.append(f"   Units: {units}")
-        lines.append("   ")
-
-    notes = def_dict.get("notes")
-    if notes:
-        lines.append(f"   {notes}")
-
-    return lines
+        line = f"- {symbol_part}: {desc} ({units})"
+    else:
+        line = f"- {symbol_part}: {desc}"
+    return [line]
 
 
 def _build_notation_lines() -> list[str]:
@@ -163,33 +158,17 @@ def _build_notation_lines() -> list[str]:
     Returns
     -------
     list[str]
-        RST lines for the title, introduction, and notation.
+        RST lines for the title, introduction, and compact notation.
     """
     return [
         "Metric Definitions",
         "===================",
         "",
-        "The following metrics are used to evaluate coil optimization submissions:",
-        "",
-        "Notation",
-        "--------",
-        "",
-        "The following notation is used throughout the mathematical definitions:",
-        "",
-        r"- :math:`C_i` denotes coil curve :math:`i`",
-        r"- :math:`S` denotes the plasma surface",
-        r"- :math:`\mathbf{r}_i` denotes a point on coil curve :math:`C_i`",
-        r"- :math:`\mathbf{s}` denotes a point on the plasma surface :math:`S`",
-        r"- :math:`\ell_i` denotes arclength along coil curve :math:`C_i`",
-        r"- :math:`L_i` denotes the total length of coil curve :math:`C_i`",
-        r"- :math:`\kappa_i` denotes curvature along coil curve :math:`C_i`",
-        r"- :math:`\frac{d\vec{F}_i}{d\ell_i}` denotes force per unit length on coil curve :math:`C_i`",
-        r"- :math:`\frac{d\vec{T}_i}{d\ell_i}` denotes torque per unit length on coil curve :math:`C_i`",
-        r"- :math:`N` denotes the number of coils",
-        r"- :math:`d\ell_i` denotes the differential arclength element along coil curve :math:`C_i`",
-        r"- :math:`ds` denotes the differential surface area element on the plasma surface :math:`S`",
-        r"- :math:`\mathbf{B}` denotes the magnetic field vector",
-        r"- :math:`\mathbf{n}` denotes the unit normal vector to the plasma surface",
+        "The following metrics are used to evaluate coil optimization submissions. "
+        "Notation: :math:`C_i` coil curve, :math:`S` plasma surface, "
+        ":math:`\\mathbf{r}_i` point on coil, :math:`\\kappa_i` curvature, "
+        ":math:`N` number of coils, :math:`\\mathbf{B}` magnetic field, "
+        ":math:`\\mathbf{n}` surface normal.",
         "",
     ]
 
@@ -197,7 +176,7 @@ def _build_notation_lines() -> list[str]:
 def _build_metric_definition_lines(
     all_metric_keys: list[str],
 ) -> list[str]:
-    """Build RST lines for all per-category metric definitions.
+    """Build RST lines for all metric definitions (flat one-line list).
 
     Parameters
     ----------
@@ -207,7 +186,7 @@ def _build_metric_definition_lines(
     Returns
     -------
     list[str]
-        RST lines for the categorised metric definitions section.
+        RST lines for the metric definitions section.
     """
     combined_metric_keys = list(all_metric_keys)
     for rk in _get_reactor_scale_display_order():
@@ -215,17 +194,21 @@ def _build_metric_definition_lines(
             combined_metric_keys.append(rk)
 
     categories = _categorise_metrics(combined_metric_keys)
-    lines: list[str] = []
-    for cat_key, cat_title in _CATEGORY_TITLES:
-        entries = categories.get(cat_key, [])
-        if not entries:
-            continue
-        lines.append(cat_title)
-        lines.append("-" * len(cat_title))
-        lines.append("")
-        for key, detailed_def in entries:
+    # Flatten all categories into one list, preserving display order
+    ordered_keys: list[str] = []
+    seen: set[str] = set()
+    for cat_key, _ in _CATEGORY_TITLES:
+        for key, _ in categories.get(cat_key, []):
+            if key not in seen:
+                seen.add(key)
+                ordered_keys.append(key)
+
+    lines: list[str] = ["Definitions", "-" * len("Definitions"), ""]
+    for key in ordered_keys:
+        detailed_def = _metric_detailed_definition(key)
+        if detailed_def:
             lines.extend(_format_metric_def(key, detailed_def))
-            lines.append("")
+    lines.append("")
     return lines
 
 
@@ -393,11 +376,6 @@ def _build_constraint_table_lines(
                 desc = "Every base coil must topologically encircle the plasma."
             elif "linking" in label.lower():
                 desc = "Coils must not interlink with one another."
-            elif "turn" in label.lower():
-                desc = (
-                    f"With :math:`N_{{\\text{{turns}}}}` chosen to keep per-turn force "
-                    f":math:`\\leq` 0.5 MN/m, no coil may require more than {N_TURNS_MODEL} turns."
-                )
             elif "finite" in label.lower() or "clearance" in label.lower():
                 desc = (
                     "Centreline distance :math:`d_{\\text{cc,min}}` must exceed "
@@ -435,12 +413,8 @@ def _build_hard_constraints_table() -> list[str]:
         "Reactor-Scale Constraints",
         "-" * len("Reactor-Scale Constraints"),
         "",
-        "All submissions are scaled to the ARIES-CS reference reactor",
-        r"(minor radius :math:`a = 1.7\,\text{m}`, on-axis field",
-        r":math:`B_0 = 5.7\,\text{T}`) before engineering feasibility is assessed.",
-        "",
-        "**Hard feasibility constraints** — any violation makes the design infeasible",
-        "(score = 0, excluded from the main leaderboard):",
+        r"Scaled to ARIES-CS (:math:`a = 1.7\,\text{m}`, :math:`B_0 = 5.7\,\text{T}`). "
+        "Hard constraints (any violation → score = 0):",
         "",
         ".. list-table::",
         "   :header-rows: 1",
@@ -470,9 +444,7 @@ def _build_soft_constraints_table() -> list[str]:
         RST lines describing each soft reactor-scale constraint.
     """
     lines = [
-        "**Soft engineering constraints** — contribute to the composite score via",
-        "exponential margin factors.  Violations lower the score below 1 but do not",
-        "set it to zero:",
+        "**Soft constraints** — margin factors; violations lower score but do not set to 0:",
         "",
         ".. list-table::",
         "   :header-rows: 1",
@@ -506,8 +478,7 @@ def _build_winding_pack_model_lines() -> list[str]:
         five-step algorithm, finite-build extent, and per-turn force/torque.
     """
     template = _load_rst_template("winding_pack_model.rst")
-    content = template.replace("{{N_TURNS_MODEL}}", str(N_TURNS_MODEL))
-    return content.rstrip().split("\n") + [""]
+    return template.rstrip().split("\n") + [""]
 
 
 def _build_visualization_legend_lines() -> list[str]:
@@ -516,13 +487,9 @@ def _build_visualization_legend_lines() -> list[str]:
     Returns
     -------
     list[str]
-        RST lines describing the ``i`` and ``f`` visualization link columns.
+        Empty; plot columns were removed from the leaderboard.
     """
-    return [
-        "- :math:`i`: Link to 3D visualization plot showing :math:`B_N/|B|` error on plasma surface with initial (pre-optimization) coils",
-        "- :math:`f`: Link to 3D visualization plot showing :math:`B_N/|B|` error on plasma surface with final (optimized) coils",
-        "",
-    ]
+    return []
 
 
 # ---------------------------------------------------------------------------

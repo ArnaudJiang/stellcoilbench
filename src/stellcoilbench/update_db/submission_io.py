@@ -7,8 +7,48 @@ from pathlib import Path
 from typing import Any, Dict, Tuple
 
 from ..constants import CONSTRAINT_VIOLATIONS_KEY
+
+
+def _flatten_continuation_metrics_for_reactor(metrics: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract final-step metrics from continuation_results when top-level keys are missing.
+
+    Reactor-scale compute needs target_B_field, _cached_thresholds (major/minor_radius),
+    and device metrics (final_min_cc_separation, etc.). Some submissions only have
+    continuation_results; use the last step's dict when top-level lacks these keys.
+
+    Parameters
+    ----------
+    metrics : dict
+        Raw metrics dict (may have continuation_results).
+
+    Returns
+    -------
+    dict
+        Metrics suitable for compute_reactor_scale_metrics (flattened when needed).
+    """
+    if not metrics:
+        return metrics
+    # Already have required keys at top level
+    if metrics.get("target_B_field") is not None and (
+        metrics.get("_cached_thresholds") or metrics.get("final_min_cc_separation") is not None
+    ):
+        return metrics
+    continuation = metrics.get("continuation_results")
+    if not continuation or not isinstance(continuation, list):
+        return metrics
+    last = continuation[-1]
+    if not isinstance(last, dict):
+        return metrics
+    # Merge last step into metrics; last step overrides when both exist
+    out = dict(metrics)
+    for k, v in last.items():
+        if out.get(k) is None and v is not None:
+            out[k] = v
+    return out
 from ._path_parsing import (
     _extract_surface_from_submission_path,
+    load_case_yaml_from_submission,
+    parse_submission_path,
 )
 
 from ._load_submissions import (
@@ -23,6 +63,55 @@ from ._metrics_extraction import (
 )
 
 logger = logging.getLogger(__name__)
+
+_REACTOR_SCALE_NON_METRIC_KEYS = frozenset(
+    {"reference", "error", "scaling_factors", "jc_model"}
+)
+
+
+def _reactor_scale_completeness(rs: Dict[str, Any]) -> int:
+    """Count reactor-scale metric keys (exclude reference, error, metadata)."""
+    if not rs:
+        return 0
+    return sum(
+        1
+        for k in rs
+        if k not in _REACTOR_SCALE_NON_METRIC_KEYS and rs[k] is not None
+    )
+
+
+def _load_case_yaml_fallback(
+    path: Path, submissions_root: Path, repo_root: Path
+) -> Dict[str, Any] | None:
+    """Load case.yaml from submission; if missing, try cases/ in repo by surface match."""
+    case_cfg = load_case_yaml_from_submission(path)
+    if case_cfg is not None:
+        return case_cfg
+    parsed = parse_submission_path(path, submissions_root)
+    surface = parsed.get("surface", "")
+    if not surface or surface == "unknown":
+        return None
+    cases_dir = repo_root / "cases"
+    if not cases_dir.is_dir():
+        return None
+    try:
+        from ..path_utils import get_surface_filename, load_yaml, surface_stem_from_filename
+
+        for yaml_path in cases_dir.glob("*.yaml"):
+            try:
+                data = load_yaml(path=yaml_path)
+                if not isinstance(data, dict):
+                    continue
+                surf_file = get_surface_filename(data)
+                if surf_file:
+                    stem = surface_stem_from_filename(surf_file)
+                    if stem == surface:
+                        return data
+            except Exception:
+                continue
+    except Exception as e:
+        logger.debug("Case fallback from cases/ failed for %s: %s", path, e)
+    return None
 
 
 def build_methods_json(
@@ -67,13 +156,13 @@ def build_methods_json(
             logger.warning("Skipping %s - no metrics found", path)
             continue
 
-        # Track duplicate method_keys (warn but still process - later overwrites earlier)
+        # Track duplicate method_keys (prefer entry with more reactor-scale data)
         if method_key in methods:
             if method_key not in duplicate_keys:
                 duplicate_keys[method_key] = [methods[method_key].get("path")]
             duplicate_keys[method_key].append(str(path))
             logger.warning(
-                "Duplicate method_key '%s'. Previous: %s, New: %s (will overwrite)",
+                "Duplicate method_key '%s'. Previous: %s, New: %s (may overwrite if more complete)",
                 method_key,
                 methods[method_key].get("path"),
                 path,
@@ -84,6 +173,57 @@ def build_methods_json(
         primary_score = normalized["primary_score"]
         rel_path = normalized["rel_path"]
         github_username = normalized["github_username"]
+
+        # Compute reactor_scale from device metrics when missing (older submissions)
+        needs_recompute = (
+            len(reactor_scale) < 3 or reactor_scale.get("error") is not None
+        )
+        if needs_recompute:
+            from .._optional_imports import get_reactor_scale_compute
+            from ..path_utils import coils_json_path_from_dir, get_surface_filename
+
+            compute_fn = get_reactor_scale_compute()
+            case_cfg = _load_case_yaml_fallback(path, submissions_root, repo_root)
+            flat_metrics = _flatten_continuation_metrics_for_reactor(metrics)
+            if compute_fn is not None:
+                try:
+                    reactor_scale = compute_fn(flat_metrics, case_cfg)
+                except Exception as e:
+                    logger.info(
+                        "Could not compute reactor_scale for %s: %s", path, e
+                    )
+            # Fallback: recompute device metrics from coils when compute failed
+            coils_path = (
+                coils_json_path_from_dir(path.parent)
+                if path.name == "results.json"
+                else None
+            )
+            surface_file = get_surface_filename(case_cfg) if case_cfg else None
+            if (
+                (reactor_scale.get("error") or len(reactor_scale) < 3)
+                and case_cfg is not None
+                and coils_path is not None
+                and surface_file
+            ):
+                try:
+                    from ..coil_optimization import evaluate_external_coils
+
+                    device_metrics = evaluate_external_coils(
+                        coils_path,
+                        surface_file,
+                        plasma_surfaces_dir=repo_root / "plasma_surfaces",
+                    )
+                    if compute_fn is not None:
+                        reactor_scale = compute_fn(device_metrics, case_cfg)
+                        logger.info(
+                            "Recomputed reactor_scale from coils for %s", path
+                        )
+                except Exception as e:
+                    logger.info(
+                        "Coil-based reactor_scale recompute failed for %s: %s",
+                        path,
+                        e,
+                    )
 
         if primary_score is None:
             skipped_no_score += 1
@@ -104,7 +244,7 @@ def build_methods_json(
         if not passes_constraints:
             skipped_constraints += 1
 
-        methods[method_key] = {
+        new_entry = {
             "method_version": meta.get(
                 "method_version",
                 path.stem if path.suffix == ".zip" else path.parent.name,
@@ -121,6 +261,16 @@ def build_methods_json(
             "passes_constraints": passes_constraints,
             CONSTRAINT_VIOLATIONS_KEY: violations,
         }
+        # Prefer entry with more complete reactor-scale data when duplicates exist
+        if method_key in methods:
+            existing_comp = _reactor_scale_completeness(
+                methods[method_key].get("reactor_scale_metrics") or {}
+            )
+            new_comp = _reactor_scale_completeness(reactor_scale)
+            if new_comp > existing_comp:
+                methods[method_key] = new_entry
+        else:
+            methods[method_key] = new_entry
 
     # Log summary
     total_duplicates = sum(len(paths) - 1 for paths in duplicate_keys.values())
@@ -263,6 +413,7 @@ def build_leaderboard_json(methods: Dict[str, Any]) -> Dict[str, Any]:
 
 # Metrics that should never appear in device-scale leaderboard tables.
 _DEVICE_LEADERBOARD_EXCLUDE: set[str] = {
+    "coil_order",
     "score_primary",
     "composite_score",
     "initial_B_field",
@@ -303,7 +454,6 @@ _DEVICE_LEADERBOARD_EXCLUDE: set[str] = {
 # Default metric display order for surface leaderboards
 _DEVICE_LEADERBOARD_DESIRED_ORDER: list[str] = [
     "num_coils",
-    "coil_order",
     "fourier_continuation_orders",
     "final_squared_flux",
     "final_normalized_squared_flux",
@@ -321,7 +471,6 @@ _DEVICE_LEADERBOARD_DESIRED_ORDER: list[str] = [
 ]
 _DEVICE_LEADERBOARD_ALWAYS_INCLUDE: list[str] = [
     "num_coils",
-    "coil_order",
     "fourier_continuation_orders",
 ]
 
