@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import logging
+import os
+import tempfile
+import zipfile
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 from ..constants import CONSTRAINT_VIOLATIONS_KEY
 
@@ -114,6 +117,90 @@ def _load_case_yaml_fallback(
     return None
 
 
+_PER_COIL_KEYS = frozenset({
+    "final_max_force_per_coil",
+    "final_max_torque_per_coil",
+    "final_length_per_coil",
+    "final_current_per_coil",
+})
+
+
+def _extract_coils_path_from_submission(
+    path: Path,
+    repo_root: Path,
+) -> Tuple[Path | None, Callable[[], None]]:
+    """Return (coils_path, cleanup_fn) for loading coils from a submission.
+
+    For zip files: extracts coils JSON to a temp file; cleanup_fn removes it.
+    For directory submissions: returns existing path; cleanup_fn is no-op.
+
+    Parameters
+    ----------
+    path : Path
+        Path to results.json or all_files.zip.
+    repo_root : Path
+        Repository root (unused for extraction; for future path resolution).
+
+    Returns
+    -------
+    tuple
+        (Path to coils JSON, or None; callable that performs cleanup).
+    """
+
+    def noop() -> None:
+        pass
+
+    if path.suffix == ".zip":
+        try:
+            with zipfile.ZipFile(path, "r") as zf:
+                # Prefer biot_savart_optimized.json (highest order first), then coils.json
+                bs_files = [
+                    n for n in zf.namelist()
+                    if n.endswith("biot_savart_optimized.json")
+                ]
+                coils_files = [n for n in zf.namelist() if n.endswith("coils.json")]
+                if bs_files:
+                    bs_files.sort(reverse=True)
+                    chosen = bs_files[0]
+                elif coils_files:
+                    coils_files.sort(reverse=True)
+                    chosen = coils_files[0]
+                else:
+                    return None, noop
+                coils_bytes = zf.read(chosen)
+        except (zipfile.BadZipFile, OSError) as e:
+            logger.debug("Could not read coils from zip %s: %s", path, e)
+            return None, noop
+
+        fd, tmp_path_str = tempfile.mkstemp(suffix=".json")
+        try:
+            os.write(fd, coils_bytes)
+            os.close(fd)
+            tmp_path = Path(tmp_path_str)
+
+            def cleanup() -> None:
+                try:
+                    tmp_path.unlink(missing_ok=True)
+                except OSError as exc:
+                    logger.debug("Could not remove temp coils file %s: %s", tmp_path, exc)
+
+            return tmp_path, cleanup
+        except OSError as e:
+            os.close(fd)
+            try:
+                os.unlink(tmp_path_str)
+            except OSError:
+                pass
+            logger.debug("Could not write temp coils file: %s", e)
+            return None, noop
+
+    # Directory submission
+    from ..path_utils import coils_json_path_from_dir
+
+    coils_path = coils_json_path_from_dir(path.parent)
+    return coils_path, noop
+
+
 def build_methods_json(
     submissions_root: Path,
     repo_root: Path,
@@ -180,7 +267,7 @@ def build_methods_json(
         )
         if needs_recompute:
             from .._optional_imports import get_reactor_scale_compute
-            from ..path_utils import coils_json_path_from_dir, get_surface_filename
+            from ..path_utils import get_surface_filename
 
             compute_fn = get_reactor_scale_compute()
             case_cfg = _load_case_yaml_fallback(path, submissions_root, repo_root)
@@ -192,38 +279,75 @@ def build_methods_json(
                     logger.info(
                         "Could not compute reactor_scale for %s: %s", path, e
                     )
-            # Fallback: recompute device metrics from coils when compute failed
-            coils_path = (
-                coils_json_path_from_dir(path.parent)
-                if path.name == "results.json"
-                else None
-            )
             surface_file = get_surface_filename(case_cfg) if case_cfg else None
-            if (
-                (reactor_scale.get("error") or len(reactor_scale) < 3)
-                and case_cfg is not None
-                and coils_path is not None
-                and surface_file
-            ):
-                try:
-                    from ..coil_optimization import evaluate_external_coils
+            coils_path, coils_cleanup = _extract_coils_path_from_submission(
+                path, repo_root
+            )
+            try:
+                # Fallback: recompute device metrics from coils when compute failed
+                if (
+                    (reactor_scale.get("error") or len(reactor_scale) < 3)
+                    and case_cfg is not None
+                    and coils_path is not None
+                    and surface_file
+                ):
+                    try:
+                        from ..coil_optimization import evaluate_external_coils
 
-                    device_metrics = evaluate_external_coils(
-                        coils_path,
-                        surface_file,
-                        plasma_surfaces_dir=repo_root / "plasma_surfaces",
-                    )
-                    if compute_fn is not None:
-                        reactor_scale = compute_fn(device_metrics, case_cfg)
-                        logger.info(
-                            "Recomputed reactor_scale from coils for %s", path
+                        device_metrics = evaluate_external_coils(
+                            coils_path,
+                            surface_file,
+                            plasma_surfaces_dir=repo_root / "plasma_surfaces",
                         )
-                except Exception as e:
-                    logger.info(
-                        "Coil-based reactor_scale recompute failed for %s: %s",
-                        path,
-                        e,
+                        if compute_fn is not None:
+                            reactor_scale = compute_fn(device_metrics, case_cfg)
+                            logger.info(
+                                "Recomputed reactor_scale from coils for %s",
+                                path,
+                            )
+                    except Exception as e:
+                        logger.info(
+                            "Coil-based reactor_scale recompute failed for %s: %s",
+                            path,
+                            e,
+                        )
+                # Backfill turn metrics (L_SC, N_turns, F_turn, etc.) when missing
+                elif (
+                    reactor_scale.get("error") is None
+                    and len(reactor_scale) >= 3
+                    and (
+                        "N_turns_per_coil" not in reactor_scale
+                        or "total_superconductor_length_km" not in reactor_scale
                     )
+                    and case_cfg is not None
+                    and coils_path is not None
+                    and surface_file
+                ):
+                    try:
+                        from ..coil_optimization import evaluate_external_coils
+
+                        device_metrics = evaluate_external_coils(
+                            coils_path,
+                            surface_file,
+                            plasma_surfaces_dir=repo_root / "plasma_surfaces",
+                        )
+                        merged = dict(flat_metrics)
+                        for k in _PER_COIL_KEYS:
+                            v = device_metrics.get(k)
+                            if v is not None:
+                                merged[k] = v
+                        reactor_scale = compute_fn(merged, case_cfg)
+                        logger.info(
+                            "Backfilled turn metrics from coils for %s", path
+                        )
+                    except Exception as e:
+                        logger.info(
+                            "Coil-based turn-metrics backfill failed for %s: %s",
+                            path,
+                            e,
+                        )
+            finally:
+                coils_cleanup()
 
         if primary_score is None:
             skipped_no_score += 1

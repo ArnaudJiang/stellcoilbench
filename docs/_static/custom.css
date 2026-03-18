@@ -171,7 +171,7 @@ body {
 /* Leaderboard table wrapper: scrollable, top 10 visible initially */
 .leaderboard-table-wrapper {
   max-height: 420px;
-  overflow-y: auto;
+  overflow: auto;
   margin-bottom: 1em;
 }
 .leaderboard-table-wrapper .sortable {
@@ -191,12 +191,14 @@ table.leaderboard-sortable th.sortable {
   cursor: pointer;
   user-select: none;
   padding: 4px 8px;
+  white-space: nowrap;
 }
 table.leaderboard-sortable th.sortable:hover {
   background: #f0f0f0;
 }
 table.leaderboard-sortable td {
   padding: 4px 8px;
+  white-space: nowrap;
 }
 
 /* Style for leaderboard tables - compact, fit page, no horizontal scroll */

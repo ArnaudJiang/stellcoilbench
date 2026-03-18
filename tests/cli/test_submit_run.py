@@ -369,6 +369,28 @@ class TestWriteAutopilotSubmission:
         )
         assert (sub_dir / "bn_error_3d_plot.pdf").read_bytes() == b"top"
 
+    def test_tags_parent_ids_stored_in_metadata(self, tmp_path):
+        """tags and parent_ids are stored in metadata for exploit/explore tracking."""
+        from stellcoilbench.cli import _write_autopilot_submission
+
+        case_output = tmp_path / "case_output"
+        case_output.mkdir()
+        _write_autopilot_submission(
+            case_id="tags_test",
+            results_dict=_make_results_dict(),
+            case_cfg=None,
+            case_config_dict=_make_case_config(),
+            walltime=10.0,
+            repo_root=tmp_path,
+            case_output_dir=case_output,
+            tags=["exploit"],
+            parent_ids=["2026-03-15_031510_17672"],
+        )
+        sub_dir = tmp_path / "submissions" / "LandremanPaul2021_QA" / "auto" / "tags_test"
+        data = json.loads((sub_dir / "results.json").read_text())
+        assert data["metadata"]["tags"] == ["exploit"]
+        assert data["metadata"]["parent_ids"] == ["2026-03-15_031510_17672"]
+
 
 class TestAppendFailureToAutopilotFailures:
     """Tests for _append_failure_to_autopilot_failures."""

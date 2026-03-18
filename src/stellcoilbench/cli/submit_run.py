@@ -381,6 +381,8 @@ def run_ci_case(
                 walltime=summary["walltime_sec"],
                 repo_root=Path.cwd(),
                 case_output_dir=out,
+                tags=summary.get("tags"),
+                parent_ids=summary.get("parent_ids"),
             )
         except (OSError, RuntimeError, ValueError, KeyError) as exc:
             typer.echo(f"WARNING: could not create submission entry: {exc}", err=True)

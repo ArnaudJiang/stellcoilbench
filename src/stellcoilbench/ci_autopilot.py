@@ -34,12 +34,17 @@ def _write_autopilot_submission(
     repo_root: Path,
     submissions_dir: Path | None = None,
     case_output_dir: Path | None = None,
+    tags: list[str] | None = None,
+    parent_ids: list[str] | None = None,
 ) -> None:
     """Create a ``submissions/`` entry so autopilot results appear on the leaderboard.
 
     The entry is formatted identically to human submissions so that no extra
     columns appear.  Directory structure:
     ``submissions/<surface>/auto/<case_id>/results.json``
+
+    Optional *tags* and *parent_ids* (e.g. ``["exploit"]`` / ``["explore"]``) are
+    stored in metadata for exploit/explore tracking in audits.
     """
     submissions_dir = submissions_dir or (repo_root / "submissions")
 
@@ -66,6 +71,8 @@ def _write_autopilot_submission(
             "run_date": _dt.now().isoformat(),
             "iterations_used": iterations_used,
             "walltime_sec": walltime_sec,
+            "tags": tags if tags is not None else [],
+            "parent_ids": parent_ids if parent_ids is not None else [],
         },
         "version_info": version_info,
         "metrics": full_metrics,

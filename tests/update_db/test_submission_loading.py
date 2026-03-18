@@ -15,6 +15,7 @@ from stellcoilbench.update_db._viz_links import (
 )
 from stellcoilbench.update_db.submission_io import (
     _extract_coil_params_from_case,
+    _extract_coils_path_from_submission,
     _extract_primary_score,
     _flatten_continuation_metrics_for_reactor,
     _reactor_scale_completeness,
@@ -254,3 +255,44 @@ class TestReactorScaleCompleteness:
             "reference": {},
         }
         assert _reactor_scale_completeness(rs) == 2
+
+
+class TestExtractCoilsPathFromSubmission:
+    """Tests for _extract_coils_path_from_submission."""
+
+    def test_zip_with_coils_json_extracts_to_temp(self, tmp_path: Path) -> None:
+        zip_dir = tmp_path / "surface1" / "user1" / "run1"
+        zip_dir.mkdir(parents=True)
+        zip_path = zip_dir / "all_files.zip"
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.writestr("coils.json", '{"coils": []}')
+            zf.writestr("results.json", json.dumps({"metrics": {}}))
+        coils_path, cleanup = _extract_coils_path_from_submission(zip_path, tmp_path)
+        assert coils_path is not None
+        assert coils_path.exists()
+        assert coils_path.read_text() == '{"coils": []}'
+        cleanup()
+        assert not coils_path.exists()
+
+    def test_zip_without_coils_returns_none(self, tmp_path: Path) -> None:
+        zip_dir = tmp_path / "surface1" / "user1" / "run1"
+        zip_dir.mkdir(parents=True)
+        zip_path = zip_dir / "all_files.zip"
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.writestr("results.json", json.dumps({"metrics": {}}))
+        coils_path, cleanup = _extract_coils_path_from_submission(zip_path, tmp_path)
+        assert coils_path is None
+        cleanup()
+
+    def test_dir_with_coils_returns_existing_path(self, tmp_path: Path) -> None:
+        sub_dir = tmp_path / "surface1" / "user1" / "run1"
+        sub_dir.mkdir(parents=True)
+        coils_file = sub_dir / "coils.json"
+        coils_file.write_text("{}")
+        results_path = sub_dir / "results.json"
+        results_path.write_text(json.dumps({"metrics": {}}))
+        coils_path, cleanup = _extract_coils_path_from_submission(results_path, tmp_path)
+        assert coils_path == coils_file
+        assert coils_path.exists()
+        cleanup()
+        assert coils_file.exists()

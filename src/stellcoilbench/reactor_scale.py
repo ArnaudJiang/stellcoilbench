@@ -456,7 +456,7 @@ def compute_reactor_scale_metrics(
 
     if major_radius is None and case_cfg is not None:
         try:
-            from .path_utils import get_surface_filename
+            from .path_utils import get_reference_radii, get_surface_filename
 
             surface_name = get_surface_filename(case_cfg)
             if surface_name:
@@ -471,9 +471,35 @@ def compute_reactor_scale_metrics(
                         nphi=16,
                         ntheta=16,
                     )
-                    major_radius = float(s.major_radius())
+                    major_radius, minor_radius = (
+                        float(x) for x in get_reference_radii(s)
+                    )
         except Exception as exc:
             logger.debug("Failed to load surface for reactor-scale metrics: %s", exc)
+
+    if minor_radius is None and case_cfg is not None:
+        try:
+            from .path_utils import get_reference_radii, get_surface_filename
+
+            surface_name = get_surface_filename(case_cfg)
+            if surface_name:
+                base_dirs = get_surface_search_base_dirs()
+                surface_path = resolve_surface_path(surface_name, base_dirs)
+                if surface_path is not None:
+                    from .post_processing import load_surface_with_range
+
+                    s = load_surface_with_range(
+                        surface_path,
+                        surface_range="half period",
+                        nphi=16,
+                        ntheta=16,
+                    )
+                    _, minor_radius = get_reference_radii(s)
+                    minor_radius = float(minor_radius)
+        except Exception as exc:
+            logger.debug(
+                "Failed to load surface for minor_radius: %s", exc
+            )
 
     if major_radius is None or target_B is None:
         reactor_metrics["error"] = "Could not determine device scale parameters"
