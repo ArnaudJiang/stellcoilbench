@@ -18,6 +18,7 @@ from ._formatting import (
 from ._writers_common import (
     _build_reactor_scale_row_cells,
     _get_constraint_violation_sets,
+    _surface_display_name,
     _write_surface_leaderboard_rst,
     _resolve_repo_root,
 )
@@ -94,7 +95,7 @@ def write_reactor_scale_leaderboard(
         header_labels = [
             _shorthand_to_html_math("Score"),
             _shorthand_to_html_math("N"),
-            _shorthand_to_html_math("n"),
+            _shorthand_to_html_math("FC"),
         ]
         for k in rs_keys:
             shorthand = _metric_shorthand(k)
@@ -102,10 +103,8 @@ def write_reactor_scale_leaderboard(
         header_labels.extend(
             [
                 _shorthand_to_html_math("LN"),
-                r'<span class="math notranslate nohighlight">\(\max_i N_{\text{turns}}\)</span>',
+                r'<span class="math notranslate nohighlight">\(N_{\text{turns}}\)</span>',
                 _shorthand_to_html_math("User"),
-                _shorthand_to_html_math("i"),
-                _shorthand_to_html_math("f"),
             ]
         )
         all_rows: list[list[tuple[str, str]]] = []
@@ -146,6 +145,16 @@ def write_reactor_scale_leaderboard(
         "",
     ]
 
+    def _reactor_surface_header_fn(
+        surface_name: str, surf_data: Dict[str, Any], entries: list
+    ) -> list:
+        display_name = _surface_display_name(surface_name)
+        header = [display_name, "-" * len(display_name), ""]
+        if entries:
+            header.append(f"This surface has {len(entries)} submission(s).")
+            header.append("")
+        return header
+
     _write_surface_leaderboard_rst(
         surface_leaderboards,
         _reactor_row_builder,
@@ -154,4 +163,5 @@ def write_reactor_scale_leaderboard(
         "rs",
         empty_entries_message="No submissions for this surface.",
         empty_no_data_message="No reactor-scale data available for this surface.",
+        surface_header_fn=_reactor_surface_header_fn,
     )

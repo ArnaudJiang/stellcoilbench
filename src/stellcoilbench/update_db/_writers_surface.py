@@ -224,14 +224,9 @@ def write_rst_leaderboard(
             "",
         ]
         if entries:
-            first_entry = entries[0]
-            metrics = first_entry.get("metrics", {})
-            num_coils = metrics.get("num_coils", "N/A")
-            coil_order = metrics.get("coil_order", "N/A")
             header.extend(
                 [
                     f"This surface has {len(entries)} submission(s).",
-                    f"Typical configuration: {int(coil_order) if isinstance(coil_order, (int, float)) else coil_order} Fourier order, {int(num_coils) if isinstance(num_coils, (int, float)) else num_coils} base coils.",
                     "",
                 ]
             )
@@ -252,8 +247,6 @@ def write_rst_leaderboard(
             ],
             _shorthand_to_html_math("Date"),
             _shorthand_to_html_math("User"),
-            _shorthand_to_html_math("i"),
-            _shorthand_to_html_math("f"),
         ]
         all_rows: list[list[tuple[str, str]]] = []
         all_row_classes: list[str] = []
@@ -261,7 +254,7 @@ def write_rst_leaderboard(
             row_cells = _build_leaderboard_row_cells(
                 entry,
                 surface_metric_keys,
-                ["score", "metrics", "date", "user", "viz_i", "viz_f"],
+                ["score", "metrics", "date", "user"],
                 with_sort_values=True,
                 repo_root=repo_root,
             )
@@ -272,11 +265,6 @@ def write_rst_leaderboard(
     surface_specific_header_lines = [
         "Surface-Specific Leaderboards",
         "===============================",
-        "",
-        "The leaderboard tables include plot links:",
-        "",
-        "- :math:`i`: Link to 3D visualization plot showing :math:`B_N/|B|` error on plasma surface with initial (pre-optimization) coils",
-        "- :math:`f`: Link to 3D visualization plot showing :math:`B_N/|B|` error on plasma surface with final (optimized) coils",
         "",
     ]
 
@@ -344,7 +332,7 @@ def write_surface_leaderboards(
                 "final_squared_flux",
                 "final_normalized_squared_flux",
                 "num_coils",
-                "coil_order",
+                "fourier_continuation_orders",
             ],
         )
 

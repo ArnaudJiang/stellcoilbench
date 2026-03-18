@@ -232,6 +232,7 @@ def _format_metric_value(
 def _format_numeric_for_leaderboard(
     value: Any,
     *,
+    metric_key: str = "",
     scientific_for_large: float | None = None,
     scientific_for_small: float | None = None,
 ) -> str:
@@ -242,6 +243,8 @@ def _format_numeric_for_leaderboard(
     ----------
     value : Any
         Raw value to format.
+    metric_key : str, optional
+        Metric key; forces and torques use .1e format.
     scientific_for_large : float, optional
         If abs(v) >= this, use scientific notation (e.g. 1000 for dipole F_max).
     scientific_for_small : float, optional
@@ -262,6 +265,9 @@ def _format_numeric_for_leaderboard(
         return "—"
     if abs(v) < 1e-100:
         return "0"
+    # Forces and torques: always use .1e format
+    if "force" in metric_key or "torque" in metric_key:
+        return f"{v:.1e}"
     if scientific_for_large is not None and abs(v) >= scientific_for_large:
         return f"{v:.2e}"
     if scientific_for_small is not None and 0 < abs(v) < scientific_for_small:
@@ -331,6 +337,7 @@ def _shorthand_to_math(shorthand: str) -> str:
         "w_WP": r":math:`w_\text{WP}`",
         "F_turn": r":math:`F_\text{turn}`",
         "τ_turn": r":math:`\tau_\text{turn}`",
+        "ζ_max": r":math:`\zeta_\text{max}`",
     }
     if shorthand in unicode_map:
         return unicode_map[shorthand]
@@ -446,6 +453,7 @@ def _shorthand_to_html_math(shorthand: str) -> str:
         "w_WP": "w<sub>WP</sub>",
         "F_turn": "F<sub>turn</sub>",
         "τ_turn": "τ<sub>turn</sub>",
+        "ζ_max": "ζ<sub>max</sub>",
         # Dipole leaderboard columns
         "L_dip": "L<sub>dip</sub>",
         "I_dip": "I<sub>dip</sub>",

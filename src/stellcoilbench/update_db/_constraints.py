@@ -5,7 +5,8 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List, Tuple
 
-N_TURNS_MODEL: int = 500
+N_TURNS_MODEL: int = 500  # Legacy; soft bound uses N_TURNS_SOFT_BOUND
+N_TURNS_SOFT_BOUND: int = 300
 REACTOR_SCALE_CONSTRAINTS: List[Dict[str, Any]] = [
     {
         "metric": "coils_linked_to_surface",
@@ -104,12 +105,13 @@ REACTOR_SCALE_CONSTRAINTS: List[Dict[str, Any]] = [
     {
         "metric": "N_turns_per_coil",
         "source": "reactor_scale_metrics",
-        "bound": N_TURNS_MODEL,
+        "bound": N_TURNS_SOFT_BOUND,
         "direction": "max",
         "transform": lambda x: max(x) if isinstance(x, list) and x else 0,
-        "hard": True,
-        "label": f"Max turns per coil (:math:`N_{{\\text{{turns}}}} \\leq {N_TURNS_MODEL}`)",
+        "label": r"Max turns per coil :math:`N_{\text{turns}}`",
         "units": "(turns)",
+        "composite_score_label": r"Max turns per coil :math:`N_{\text{turns}}`",
+        "margin_value_rst": r"\max_i N_{\text{turns},i}",
     },
     {
         "metric": "finite_build_cc_clearance",

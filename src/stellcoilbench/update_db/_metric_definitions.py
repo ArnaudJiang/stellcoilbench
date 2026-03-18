@@ -40,6 +40,7 @@ METRIC_DEFINITIONS: dict[str, str] = {
     "total_superconductor_length_km": r"Total superconductor length $L_{\text{SC}} = \frac{1}{1000} \sum_i N_{\text{turns},i} \times L_{\text{reactor},i}$ (km)",
     # Arclength variation
     "final_arclength_variation": r"Variance of incremental arclength $J = \text{Var}(l_i)$ where $l_i$ is the average incremental arclength on interval $I_i$ from a partition $\{I_i\}_{i=1}^L$ of $[0,1]$ ($\text{m}^2$)",
+    "final_max_torsion": r"Maximum torsion $\zeta_\text{max}$ across all coils ($\text{m}^{-1}$)",
     # Coil parameters
     "coil_order": r"Fourier order $n$ of coil representation: $\mathbf{r}(\phi) = \mathbf{a}_0 + \sum_{m=1}^{n} \left[\mathbf{a}_m \cos(m\phi) + \mathbf{b}_m \sin(m\phi)\right]$ (dimensionless)",
     "num_coils": r"Number of base coils $N$ (before applying stellarator symmetry) (dimensionless)",
@@ -109,7 +110,7 @@ METRIC_DETAILED_DEFINITIONS: dict[str, dict[str, Any]] = {
         "symbol": r":math:`L`",
         "description": "Total length of all coils.",
         "math_forms": [r"L = \sum_{i=1}^{N} \int_{C_i} d\ell_i"],
-        "units": r":math:`\text{m}` (meters)",
+        "units": r":math:`\text{m}`",
         "notes": "Shorter coils are generally preferred for reduced material costs and improved manufacturability.",
     },
     "final_average_curvature": {
@@ -121,7 +122,7 @@ METRIC_DETAILED_DEFINITIONS: dict[str, dict[str, Any]] = {
             r"\bar{\kappa} = \frac{1}{N} \sum_{i=1}^{N} \frac{1}{L_i} \int_{C_i} \kappa_i(\ell_i) ~d\ell_i",
         ],
         "where": r"where :math:`\mathbf{r}_i(\ell_i)` is the parameterization of coil curve :math:`C_i` by arclength.",
-        "units": r":math:`\text{m}^{-1}` (inverse meters)",
+        "units": r":math:`\text{m}^{-1}`",
         "notes": "Lower curvature values indicate smoother coils that are easier to manufacture.",
     },
     "final_max_curvature": {
@@ -131,7 +132,7 @@ METRIC_DETAILED_DEFINITIONS: dict[str, dict[str, Any]] = {
         "math_forms": [
             r"\kappa_\text{max} = \max_{i=1,\ldots,N} \max_{\ell_i \in [0,L_i]} \kappa_i(\ell_i)"
         ],
-        "units": r":math:`\text{m}^{-1}` (inverse meters)",
+        "units": r":math:`\text{m}^{-1}`",
         "notes": "Lower values indicate coils without extreme curvature regions.",
     },
     "final_mean_squared_curvature": {
@@ -143,7 +144,7 @@ METRIC_DETAILED_DEFINITIONS: dict[str, dict[str, Any]] = {
             r"\text{MSC} = \frac{1}{N} \sum_{i=1}^{N} J_i",
         ],
         "where": r"where :math:`L_i` is the total length of coil curve :math:`C_i`, :math:`\ell_i` is the arclength along the curve, and :math:`\kappa_i` is the curvature.",
-        "units": r":math:`\text{m}^{-2}` (inverse meters squared)",
+        "units": r":math:`\text{m}^{-2}`",
         "notes": "This provides a smoother penalty than maximum curvature, encouraging overall smoothness rather than just avoiding extreme values.",
     },
     "final_arclength_variation": {
@@ -152,7 +153,7 @@ METRIC_DETAILED_DEFINITIONS: dict[str, dict[str, Any]] = {
         "description": "Variance of incremental arclength between coil segments.",
         "math_forms": [r"J = \text{Var}(l_i)"],
         "where": r"where :math:`l_i` is the average incremental arclength on interval :math:`I_i` from a partition :math:`\{I_i\}_{i=1}^L` of :math:`[0,1]`.",
-        "units": r":math:`\text{m}^2` (meters squared)",
+        "units": r":math:`\text{m}^2`",
         "notes": "Lower values indicate more uniform spacing along coils, which is important for manufacturing and field quality.",
     },
     "final_min_cc_separation": {
@@ -162,7 +163,7 @@ METRIC_DETAILED_DEFINITIONS: dict[str, dict[str, Any]] = {
         "math_forms": [
             r"d_{cc} = \min_{i \neq j} \min_{\mathbf{r}_i \in C_i, \mathbf{r}_j \in C_j} \left\| \mathbf{r}_i - \mathbf{r}_j \right\|_2"
         ],
-        "units": r":math:`\text{m}` (meters)",
+        "units": r":math:`\text{m}`",
         "notes": "Ensures coils maintain a safe separation distance to prevent collisions.",
     },
     "final_min_cs_separation": {
@@ -172,7 +173,7 @@ METRIC_DETAILED_DEFINITIONS: dict[str, dict[str, Any]] = {
         "math_forms": [
             r"d_{cs} = \min_{i} \min_{\mathbf{r}_i \in C_i, \mathbf{s} \in S} \left\| \mathbf{r}_i - \mathbf{s} \right\|_2"
         ],
-        "units": r":math:`\text{m}` (meters)",
+        "units": r":math:`\text{m}`",
         "notes": "Ensures coils maintain a safe distance from the plasma surface.",
     },
     "final_avg_max_coil_force": {
@@ -183,7 +184,7 @@ METRIC_DETAILED_DEFINITIONS: dict[str, dict[str, Any]] = {
             r"\bar{F} = \frac{1}{N} \sum_{i=1}^{N} \max_{\ell_i \in [0,L_i]} \left|\frac{d\vec{F}_i}{d\ell_i}\right|"
         ],
         "where": r"where :math:`\frac{d\vec{F}_i}{d\ell_i}` is the Lorentz force per unit length on coil curve :math:`C_i`.",
-        "units": r":math:`\text{N}/\text{m}` (Newtons per meter)",
+        "units": r":math:`\text{N}/\text{m}`",
         "notes": "Lower values indicate coils that are easier to support mechanically.",
     },
     "final_max_max_coil_force": {
@@ -193,7 +194,7 @@ METRIC_DETAILED_DEFINITIONS: dict[str, dict[str, Any]] = {
         "math_forms": [
             r"F_\text{max} = \max_{i=1,\ldots,N} \max_{\ell_i \in [0,L_i]} \left|\frac{d\vec{F}_i}{d\ell_i}\right|"
         ],
-        "units": r":math:`\text{N}/\text{m}` (Newtons per meter)",
+        "units": r":math:`\text{N}/\text{m}`",
         "notes": "High forces indicate coils that may be difficult to support mechanically.",
     },
     "final_avg_max_coil_torque": {
@@ -204,7 +205,7 @@ METRIC_DETAILED_DEFINITIONS: dict[str, dict[str, Any]] = {
             r"\bar{\tau} = \frac{1}{N} \sum_{i=1}^{N} \max_{\ell_i \in [0,L_i]} \left|\frac{d\vec{T}_i}{d\ell_i}\right|"
         ],
         "where": r"where :math:`\frac{d\vec{T}_i}{d\ell_i}` is the Lorentz torque per unit length on coil curve :math:`C_i`.",
-        "units": r":math:`\text{N}` (Newtons)",
+        "units": r":math:`\text{N}`",
         "notes": "Lower values indicate coils with reduced rotational forces that must be resisted by supports.",
     },
     "final_max_max_coil_torque": {
@@ -214,7 +215,7 @@ METRIC_DETAILED_DEFINITIONS: dict[str, dict[str, Any]] = {
         "math_forms": [
             r"\tau_\text{max} = \max_{i=1,\ldots,N} \max_{\ell_i \in [0,L_i]} \left|\frac{d\vec{T}_i}{d\ell_i}\right|"
         ],
-        "units": r":math:`\text{N}` (Newtons)",
+        "units": r":math:`\text{N}`",
         "notes": "High torques can lead to mechanical instability.",
     },
     "final_linking_number": {
@@ -231,7 +232,7 @@ METRIC_DETAILED_DEFINITIONS: dict[str, dict[str, Any]] = {
         "title": "Total Optimization Time",
         "symbol": r":math:`t`",
         "description": "Total time required to complete the optimization.",
-        "units": r":math:`\text{s}` (seconds)",
+        "units": r":math:`\text{s}`",
         "notes": "Lower values indicate more efficient optimization algorithms or faster convergence.",
     },
     "quasisymmetry_average": {
@@ -265,7 +266,7 @@ METRIC_DETAILED_DEFINITIONS: dict[str, dict[str, Any]] = {
             r"L_{\text{SC}} = \frac{1}{1000} \sum_{i=1}^{N_{\text{coils}}} N_{\text{turns},i} \times L_{\text{reactor},i}"
         ],
         "where": r"where :math:`N_{\text{turns},i} = \max(N_{F,i},\, N_{J_c,i})` is the number of turns per coil (driven by force limits or REBCO critical-current limits, whichever is larger), and :math:`L_{\text{reactor},i}` is the reactor-scale length of coil :math:`i`. The factor of 1/1000 converts from meters to kilometers.",
-        "units": r":math:`\text{km}` (kilometers)",
+        "units": r":math:`\text{km}`",
         "notes": "Lower values indicate more economical coil designs requiring less superconducting material. This is a derived reactor-scale metric that combines the winding-pack turn count with the scaled coil lengths.",
     },
 }

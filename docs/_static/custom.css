@@ -153,17 +153,18 @@ body {
     }
 }
 
-/* On smaller screens, still allow full width expansion */
+/* On smaller screens, keep table fitting viewport without horizontal scroll */
 @media screen and (max-width: 1200px) {
     .rst-content table.docutils,
     .rst-content .list-table {
         display: block;
         overflow-x: visible;
+        max-width: 100%;
     }
-    
-    .rst-content table.docutils,
+
+    .rst-content table.docutils table,
     .rst-content .list-table table {
-        min-width: max-content;
+        max-width: 100%;
     }
 }
 
@@ -198,30 +199,32 @@ table.leaderboard-sortable td {
   padding: 4px 8px;
 }
 
-/* Style for leaderboard tables specifically - make them more compact */
-/* Data rows - smaller for numbers */
+/* Style for leaderboard tables - compact, fit page, no horizontal scroll */
+.rst-content section[id*="leaderboard"] table.docutils,
+.rst-content section[id*="leaderboard"] .list-table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
+}
+
 .rst-content section[id*="leaderboard"] table.docutils td,
 .rst-content section[id*="leaderboard"] .list-table td {
-    font-size: 0.16em;
-    padding: 0px;
-    line-height: 0.42;
-    letter-spacing: -0.22em;
+    font-size: 0.8em;
+    padding: 4px 6px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-family: "Courier New", "Consolas", "Monaco", monospace;
-    font-stretch: ultra-condensed;
-    word-spacing: -0.30em;
-    transform: scaleX(0.85);
 }
-/* Header rows - keep readable */
+
 .rst-content section[id*="leaderboard"] table.docutils th,
 .rst-content section[id*="leaderboard"] .list-table th {
-    font-size: 0.28em;
-    padding: 0px;
-    line-height: 0.55;
-    letter-spacing: -0.18em;
+    font-size: 0.85em;
+    padding: 4px 6px;
+    line-height: 1.2;
+    white-space: nowrap;
     font-family: "Courier New", "Consolas", "Monaco", monospace;
-    font-stretch: ultra-condensed;
-    word-spacing: -0.25em;
-    transform: scaleX(0.92);
 }
 
 /* Make leaderboard table captions (titles) normal-sized and readable */

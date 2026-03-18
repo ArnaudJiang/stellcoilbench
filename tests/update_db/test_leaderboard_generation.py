@@ -184,7 +184,7 @@ class TestGetAllMetricsFromEntries:
         ]
         result = _get_all_metrics_from_entries(entries)
         assert "final_normalized_squared_flux" not in result
-        assert "coil_order" in result
+        assert "coil_order" not in result  # excluded; FC used instead
         assert "num_coils" in result
 
     def test_final_squared_flux_priority(self) -> None:
@@ -193,7 +193,7 @@ class TestGetAllMetricsFromEntries:
                 "metrics": {
                     "final_average_curvature": 1.0,
                     "final_squared_flux": 0.001,
-                    "coil_order": 4,
+                    "fourier_continuation_orders": "4,8",
                 }
             }
         ]
@@ -393,6 +393,28 @@ class TestCheckReactorConstraints:
         passes, _ = check_reactor_constraints(metrics, reactor)
         assert passes is False
 
+    def test_n_turns_over_500_no_longer_hard_failure(self) -> None:
+        """N_turns > 500 is soft-only; no longer causes hard constraint failure."""
+        metrics = {
+            "avg_BdotN_over_B": 5e-3,
+            "final_linking_number": 0,
+            "coils_linked_to_surface": True,
+        }
+        reactor = {
+            "reactor_scale_min_cs_separation": 2.0,
+            "reactor_scale_min_cc_separation": 1.0,
+            "reactor_scale_total_length": 180.0,
+            "reactor_scale_max_curvature": 0.8,
+            "reactor_scale_mean_squared_curvature": 0.5,
+            "N_turns_per_coil": [600, 550],
+            "finite_build_cc_clearance": 0.5,
+        }
+        passes, violations = check_reactor_constraints(metrics, reactor)
+        assert passes is True
+        n_turns_violations = [v for v in violations if "turn" in v.get("label", "").lower()]
+        if n_turns_violations:
+            assert all(not v.get("hard") for v in n_turns_violations)
+
 
 class TestComputeCompositeScore:
     """Tests for compute_composite_score."""
@@ -405,6 +427,51 @@ class TestComputeCompositeScore:
     def test_empty_metrics_score_none(self) -> None:
         score, _ = compute_composite_score({}, {})
         assert score is None
+
+    def test_n_turns_under_300_soft_reward(self) -> None:
+        """max N_turns < 300 yields positive margin, score > 1."""
+        metrics = {
+            "coils_linked_to_surface": True,
+            "final_linking_number": 0,
+        }
+        reactor = {
+            "reactor_scale_min_cs_separation": 2.0,
+            "reactor_scale_min_cc_separation": 1.0,
+            "reactor_scale_total_length": 180.0,
+            "reactor_scale_max_curvature": 0.8,
+            "reactor_scale_mean_squared_curvature": 0.5,
+            "reactor_scale_arclength_variation": 0.5,
+            "total_superconductor_length_km": 50.0,
+            "finite_build_cc_clearance": 0.5,
+            "N_turns_per_coil": [100, 150],
+        }
+        score, details = compute_composite_score(metrics, reactor)
+        assert score is not None
+        assert score > 1.0
+        assert "N_turns_per_coil" in details.get("factors", {})
+        assert details["factors"]["N_turns_per_coil"]["margin"] > 0
+
+    def test_n_turns_over_300_soft_penalty(self) -> None:
+        """max N_turns > 300 yields negative margin; score remains > 0 (no hard fail)."""
+        metrics = {
+            "coils_linked_to_surface": True,
+            "final_linking_number": 0,
+        }
+        reactor = {
+            "reactor_scale_min_cs_separation": 2.0,
+            "reactor_scale_min_cc_separation": 1.0,
+            "reactor_scale_total_length": 180.0,
+            "reactor_scale_max_curvature": 0.8,
+            "reactor_scale_mean_squared_curvature": 0.5,
+            "reactor_scale_arclength_variation": 0.5,
+            "total_superconductor_length_km": 50.0,
+            "finite_build_cc_clearance": 0.5,
+            "N_turns_per_coil": [400, 350],
+        }
+        score, details = compute_composite_score(metrics, reactor)
+        assert score is not None
+        assert score > 0.0
+        assert details["factors"]["N_turns_per_coil"]["margin"] < 0
 
 
 def test_n_turns_model_exists() -> None:
