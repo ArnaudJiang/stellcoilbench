@@ -236,6 +236,10 @@ def optimize_coils_with_fourier_continuation(
 
     proc0_print(f"Starting Fourier continuation with orders: {fourier_orders}")
 
+    # Single VTK animation root and shared frame counter across continuation steps.
+    kwargs["structural_animation_vtk_root"] = str(out_dir_path)
+    kwargs.setdefault("_structural_animation_frame_counter", [0])
+
     for i, order in enumerate(fourier_orders):
         proc0_print(f"\n{'=' * 60}")
         proc0_print(

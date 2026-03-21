@@ -193,6 +193,39 @@ class TestValidateCaseConfig:
         errors = validate_case_config(data)
         assert errors == []
 
+    def test_structural_animation_vtk_keys_valid(self):
+        """structural_animation_vtk and structural_animation_subdir validate."""
+        data = _merge(
+            _base_config(),
+            {
+                "coils_params": {"ncoils": 4},
+                "coil_objective_terms": {
+                    "structural_stress": "l2_threshold",
+                    "structural_stress_threshold": 1e7,
+                    "structural_animation_vtk": True,
+                    "structural_animation_subdir": "vtk_frames",
+                },
+            },
+        )
+        errors = validate_case_config(data)
+        assert errors == []
+
+    def test_structural_animation_vtk_must_be_bool(self):
+        """structural_animation_vtk rejects non-boolean."""
+        data = _merge(
+            _base_config(),
+            {
+                "coils_params": {"ncoils": 4},
+                "coil_objective_terms": {
+                    "structural_stress": "l2_threshold",
+                    "structural_stress_threshold": 1e7,
+                    "structural_animation_vtk": "yes",
+                },
+            },
+        )
+        errors = validate_case_config(data)
+        assert_errors_contain(errors, "structural_animation_vtk must be a boolean")
+
     def test_invalid_coil_objective_term_option(self):
         """Test validation with invalid coil_objective_term option."""
         data = _merge(

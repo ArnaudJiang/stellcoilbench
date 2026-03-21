@@ -63,6 +63,8 @@ _VALID_STRUCTURAL_PARAMS = {
     "structural_refine_stress_ratio",
     "structural_use_cached_K",
     "structural_backend",
+    "structural_animation_vtk",
+    "structural_animation_subdir",
 }
 
 
@@ -99,6 +101,16 @@ def _validate_objective_terms(obj_terms: Any, pfx: str) -> list[str]:
                 if not isinstance(term_value, int) or term_value < 1:
                     errors.append(
                         f"{pfx}coil_objective_terms.{term_name} must be a positive integer"
+                    )
+            elif term_name == "structural_animation_vtk":
+                if not isinstance(term_value, bool):
+                    errors.append(
+                        f"{pfx}coil_objective_terms.{term_name} must be a boolean"
+                    )
+            elif term_name == "structural_animation_subdir":
+                if not isinstance(term_value, str) or not term_value.strip():
+                    errors.append(
+                        f"{pfx}coil_objective_terms.{term_name} must be a non-empty string"
                     )
             elif term_name == "structural_use_cached_K":
                 if not isinstance(term_value, bool):

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 from scipy.spatial import cKDTree
@@ -23,7 +23,7 @@ from simsopt._core.optimizable import Optimizable
 from simsopt.field import BiotSavart
 
 from stellcoilbench.coil_optimization._structural_mesh import _surface_sweep_to_msh
-from stellcoilbench.mpi_utils import comm_world, is_mpi_enabled
+from stellcoilbench.mpi_utils import comm_world, is_mpi_enabled, is_proc0, proc0_print
 from stellcoilbench.structural_analysis import write_structural_vtk
 from stellcoilbench.structural_analysis._common import (
     _build_coil_centerline_data,
@@ -77,6 +77,9 @@ class StructuralStressObjective(Optimizable):
         structural_backend: str = "dolfinx",
         quadrature_degree: int = 1,
         polynomial_degree: int = 2,
+        animation_frames_dir: Path | None = None,
+        animation_frame_counter: list[int] | None = None,
+        animation_surface_snap: Callable[[int], None] | None = None,
     ) -> None:
         """Initialize the structural stress objective.
 
@@ -139,6 +142,12 @@ class StructuralStressObjective(Optimizable):
         polynomial_degree : int, optional
             Lagrange polynomial order for displacement (DOLFINx backend only).
             scikit-fem uses P1. Default 2.
+        animation_frames_dir : Path, optional
+            Directory for ``snapshot_structural_%06d.vtk`` when animation export is on.
+        animation_frame_counter : list[int], optional
+            Single-element list shared across Fourier stages; incremented per export.
+        animation_surface_snap : callable, optional
+            ``snap(idx)`` writes ``snapshot_surface_{idx:06d}.vts`` (B·n fields).
         """
         self._unique_coils = list(unique_coils)
         self._all_coils = (
@@ -174,6 +183,15 @@ class StructuralStressObjective(Optimizable):
         self._structural_backend = str(structural_backend).lower()
         self._quadrature_degree = int(quadrature_degree)
         self._polynomial_degree = int(polynomial_degree)
+
+        self._anim_frames_dir = (
+            Path(animation_frames_dir).resolve()
+            if animation_frames_dir is not None
+            else None
+        )
+        self._anim_frame_counter = animation_frame_counter
+        self._anim_surface_snap = animation_surface_snap
+        self._anim_last_export_x: np.ndarray | None = None
 
         self._cross_section_area = width * height
 
@@ -460,9 +478,43 @@ class StructuralStressObjective(Optimizable):
         self._refinement_done = True
         self._build_mesh()
 
+    def _maybe_emit_animation_vtk(
+        self,
+        mesh_for_vtk: Any,
+        displacement: Any,
+        von_mises: Any,
+        *,
+        animation_export_ok: bool,
+    ) -> None:
+        """Write paired structural + surface VTK when animation export is configured.
+
+        Called only from scalar stress paths (not gradient assembly). Skips duplicate
+        exports for the same DOF vector (e.g. repeated ``J()`` on the same ``x``).
+        """
+        if not animation_export_ok:
+            return
+        if self._anim_frames_dir is None or self._anim_frame_counter is None:
+            return
+        if not is_proc0():
+            return
+        x = np.asarray(self.full_x, dtype=float)
+        if self._anim_last_export_x is not None and x.shape == self._anim_last_export_x.shape:
+            if np.allclose(x, self._anim_last_export_x):
+                return
+        try:
+            idx = int(self._anim_frame_counter[0])
+            self._anim_frame_counter[0] = idx + 1
+            path = self._anim_frames_dir / f"snapshot_structural_{idx:06d}.vtk"
+            write_structural_vtk(mesh_for_vtk, displacement, von_mises, path)
+            if self._anim_surface_snap is not None:
+                self._anim_surface_snap(idx)
+            self._anim_last_export_x = x.copy()
+        except Exception as exc:
+            proc0_print(f"[structural_animation] VTK export failed: {exc}")
+
     def _evaluate_stress(self) -> float:
         """Run the full FEM pipeline: deform mesh -> J×B -> solve -> Von Mises -> scalar."""
-        return self._evaluate_stress_impl()
+        return self._evaluate_stress_impl(animation_export_ok=True)
 
     def _evaluate_stress_impl(
         self,
@@ -474,6 +526,7 @@ class StructuralStressObjective(Optimizable):
         return_assembly: bool = False,
         cached_coil_frames=None,
         cached_Breg_list=None,
+        animation_export_ok: bool = False,
     ) -> float | tuple[float, Any, Any, np.ndarray]:
         """Internal FEM pipeline. When return_assembly=True, returns (scalar, K, ib, fixed_dofs)."""
         self._deform_mesh()
@@ -486,6 +539,7 @@ class StructuralStressObjective(Optimizable):
                 cached_fixed_dofs=cached_fixed_dofs,
                 cached_coil_frames=cached_coil_frames,
                 cached_Breg_list=cached_Breg_list,
+                animation_export_ok=animation_export_ok,
             )
         return self._evaluate_stress_skfem(
             cached_K=cached_K,
@@ -496,6 +550,7 @@ class StructuralStressObjective(Optimizable):
             return_assembly=return_assembly,
             cached_coil_frames=cached_coil_frames,
             cached_Breg_list=cached_Breg_list,
+            animation_export_ok=animation_export_ok,
         )
 
     def _evaluate_stress_dolfinx(
@@ -506,6 +561,7 @@ class StructuralStressObjective(Optimizable):
         cached_fixed_dofs=None,
         cached_coil_frames=None,
         cached_Breg_list=None,
+        animation_export_ok: bool = False,
     ) -> float | tuple[float, Any, Any, np.ndarray]:
         """DOLFINx backend: create mesh from deformed topology, solve, return scalar."""
         from stellcoilbench.structural_analysis import (
@@ -565,6 +621,9 @@ class StructuralStressObjective(Optimizable):
             scalar = self._stress_scalar_from_vm(vm_arr)
         if return_assembly:
             return scalar, None, None, np.array([]), None, None
+        self._maybe_emit_animation_vtk(
+            mesh_dx, u, vm, animation_export_ok=animation_export_ok
+        )
         return scalar
 
     def _evaluate_stress_skfem(
@@ -577,6 +636,7 @@ class StructuralStressObjective(Optimizable):
         return_assembly: bool = False,
         cached_coil_frames=None,
         cached_Breg_list=None,
+        animation_export_ok: bool = False,
     ) -> float | tuple[float, Any, Any, np.ndarray]:
         """scikit-fem backend: solve elasticity, return scalar (and optionally K, ib, fixed_dofs)."""
         body_force_array = np.zeros((self._mesh.p.shape[1], 3))
@@ -633,6 +693,9 @@ class StructuralStressObjective(Optimizable):
             if len(result) >= 6:
                 return scalar, K, ib, fixed_dofs, K_ff, free_dofs
             return scalar, K, ib, fixed_dofs
+        self._maybe_emit_animation_vtk(
+            self._mesh, u_array, vm, animation_export_ok=animation_export_ok
+        )
         return scalar
 
     def _volume_weighted_mean_vm_skfem(self, vm: np.ndarray) -> float:

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Tuple
 
 from ..config_scheme import PostProcessingConfig
-from ..mpi_utils import comm_world, is_mpi_enabled, is_proc0
+from ..mpi_utils import comm_world, is_mpi_enabled, is_proc0, proc0_print
 from ..constants import (
     CURRENT_SCALING_CONVERGENCE_TOL,
     DEFAULT_COIL_QUADPOINTS,
@@ -21,7 +21,11 @@ from ..utils import _timing_results, suppress_output, timed_section
 from ._adaptive_search import _coils_via_symmetries_compat, _make_base_currents
 from ._ci_utils import _is_ci_running, _nullcontext, _redirect_verbose_to_file
 from ._optimization_types import OptimizationLoopContext
-from ._plotting import _create_plotting_surface, _print_optimization_setup_summary
+from ._plotting import (
+    _compute_surface_vtk_data,
+    _create_plotting_surface,
+    _print_optimization_setup_summary,
+)
 from ._results import (
     OptimizationOutcome,
     compute_total_current,
@@ -476,6 +480,37 @@ def _optimize_coils_loop_impl(
             out_dir,
             save_coils_surface_vtk=save_coils_surface_vtk,
             save_initial_state=save_initial_state,
+        )
+
+    if (
+        coil_objective_terms
+        and coil_objective_terms.get("structural_animation_vtk")
+        and is_proc0()
+    ):
+        root = Path(
+            kwargs.get("structural_animation_vtk_root", str(out_dir))
+        ).resolve()
+        sub = str(coil_objective_terms.get("structural_animation_subdir") or "vtk_frames")
+        frames_dir = (root / sub).resolve()
+        frames_dir.mkdir(parents=True, exist_ok=True)
+        kwargs.setdefault("_structural_animation_frame_counter", [0])
+
+        def _surface_snap(idx: int) -> None:
+            # compute_bdotn_point_data sets bs to s_plot; SquaredFlux needs bs on s.
+            try:
+                stem = frames_dir / f"snapshot_surface_{idx:06d}"
+                point_data = _compute_surface_vtk_data(
+                    bs, s_plot, qphi, qtheta, include_bn=True
+                )
+                s_plot.to_vtk(str(stem), extra_data=point_data)
+            finally:
+                bs.set_points(s.gamma().reshape((-1, 3)))
+
+        kwargs["_structural_animation_frames_dir"] = frames_dir
+        kwargs["_structural_animation_surface_snap"] = _surface_snap
+        proc0_print(
+            f"[structural_animation] Writing paired VTK to {frames_dir} "
+            "(on each full structural stress evaluation)"
         )
 
     # Step 4: Build objectives and constraints
