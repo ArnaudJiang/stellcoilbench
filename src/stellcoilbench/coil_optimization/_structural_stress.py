@@ -133,6 +133,9 @@ def _build_structural_stress_objective(
     thresholds: Dict[str, Any],
     *,
     out_dir: Path | None = None,
+    animation_frames_dir: Path | None = None,
+    animation_frame_counter: list[int] | None = None,
+    animation_surface_snap: Any | None = None,
 ) -> Any | None:
     r"""Lazily construct a :class:`StructuralStressObjective` if scikit-fem and gmsh are available.
 
@@ -273,4 +276,13 @@ def _build_structural_stress_objective(
         kwargs["refine_stress_ratio"] = refine_stress_ratio
     else:
         kwargs["mesh_resolution"] = mesh_resolution_coarse
+    if (
+        coil_objective_terms.get("structural_animation_vtk")
+        and animation_frames_dir is not None
+        and animation_frame_counter is not None
+        and animation_surface_snap is not None
+    ):
+        kwargs["animation_frames_dir"] = animation_frames_dir
+        kwargs["animation_frame_counter"] = animation_frame_counter
+        kwargs["animation_surface_snap"] = animation_surface_snap
     return StructuralStressObjective(**kwargs)

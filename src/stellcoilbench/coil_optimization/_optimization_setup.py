@@ -433,6 +433,9 @@ def _build_objectives_and_constraints(
             effective_obj_terms,
             thresholds,
             out_dir=out_dir,
+            animation_frames_dir=kwargs.get("_structural_animation_frames_dir"),
+            animation_frame_counter=kwargs.get("_structural_animation_frame_counter"),
+            animation_surface_snap=kwargs.get("_structural_animation_surface_snap"),
         )
         structural_obj = structural_obj_raw
         if structural_obj is not None:
