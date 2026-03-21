@@ -1,0 +1,35 @@
+# Copy of LandremanPaulQA structural case with full Fourier continuation [4,8,16] and
+# paired VTK animation: plasma-surface B·n fields + structural Von Mises mesh on each
+# full FEM stress evaluation (cadence set by structural_eval_interval).
+# VTK files: <run_root>/vtk_frames/snapshot_surface_%06d.vts and snapshot_structural_%06d.vtk
+description: "Landreman-Paul 2021 QA structural optimization with FC [4,8,16], L-BFGS-B; paired B·n surface + structural VTK on each full stress eval (structural_eval_interval=2)."
+surface_params:
+  surface: "input.LandremanPaul2021_QA"
+
+coils_params:
+  ncoils: 4
+  order: 4
+
+optimizer_params:
+  algorithm: "L-BFGS-B"
+  max_iterations: 200
+
+fourier_continuation:
+  enabled: true
+  orders: [4, 8, 16]
+
+coil_objective_terms:
+  length_threshold: 242.4
+  cc_threshold: 1.8
+  cs_threshold: 1.5
+  structural_stress: "l2_threshold"
+  structural_stress_metric: "mean_von_mises"
+  structural_stress_threshold: 1e7   # Pa
+  structural_mesh_resolution_coarse: 0.08
+  structural_quadrature_degree: 2
+  structural_eval_interval: 2
+  structural_animation_vtk: true
+  structural_animation_subdir: "vtk_frames"
+
+post_processing:
+  finite_build_width: 0.1
