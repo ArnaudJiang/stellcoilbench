@@ -1,0 +1,54 @@
+{
+  "case_id": "2026-03-30_085333_55537",
+  "parent_ids": [
+    "2026-03-30_064507_82185"
+  ],
+  "tags": [
+    "exploit"
+  ],
+  "proposer_mode": "ga",
+  "resource": {
+    "max_total_iterations": 500,
+    "timeout_minutes": 60
+  },
+  "case_config": {
+    "coil_objective_terms": {
+      "cc_threshold": 0.053843,
+      "coil_arclength_variation": "l2_threshold",
+      "coil_curvature": "lp_threshold",
+      "coil_curvature_p": 2,
+      "coil_mean_squared_curvature": "l2_threshold",
+      "cs_threshold": 1.26117,
+      "curvature_threshold": 9.974233,
+      "flux_threshold": 0.000871,
+      "force_threshold": 57.627219,
+      "linking_number": "",
+      "msc_threshold": 729.422199,
+      "torque_threshold": 45.052601,
+      "total_length": "l2_threshold"
+    },
+    "coils_params": {
+      "ncoils": 4,
+      "order": 4
+    },
+    "description": "Mutation: input.LandremanPaul2021_QA ncoils=4 order=4",
+    "fourier_continuation": {
+      "enabled": true,
+      "orders": [
+        4,
+        8,
+        16
+      ]
+    },
+    "optimizer_params": {
+      "algorithm": "augmented_lagrangian",
+      "max_iterations": 500,
+      "verbose": true
+    },
+    "surface_params": {
+      "range": "half period",
+      "surface": "input.LandremanPaul2021_QA"
+    }
+  },
+  "random_seed": 977709520
+}
