@@ -1,60 +1,5 @@
 [
   {
-    "timestamp": "2026-03-12 14:52:03",
-    "entries": [
-      {
-        "case_id": "2026-03-12_145203_41663",
-        "type": "explore",
-        "reasoning": "Starting with baseline MUSE reference case but using maximum allowed force/torque thresholds to address the severe violations seen in all QA parent runs. This establishes a feasibility baseline on MUSE surface."
-      },
-      {
-        "case_id": "2026-03-12_145203_25633",
-        "type": "mutate",
-        "reasoning": "Building on run 85897 (4 coils) which had the smallest force violations among 4-coil parents. Switching to MUSE with high but not maximum force/torque limits and moderate engineering constraints."
-      },
-      {
-        "case_id": "2026-03-12_145203_95456",
-        "type": "explore",
-        "reasoning": "Exploring 3 coils on MUSE with very relaxed constraints across all dimensions to establish if fewer coils can achieve feasibility with the new surface geometry."
-      },
-      {
-        "case_id": "2026-03-12_145203_43047",
-        "type": "mutate",
-        "reasoning": "Mutating the best-performing 3-coil parent to MUSE with 4 coils and maximum force/torque limits. The parent had tight cc margins, so using relaxed cc threshold on new surface."
-      },
-      {
-        "case_id": "2026-03-12_145203_78831",
-        "type": "explore",
-        "reasoning": "Testing if 5 coils can distribute forces better and achieve feasibility with more moderate force/torque thresholds while maintaining near-baseline engineering constraints."
-      },
-      {
-        "case_id": "2026-03-12_145203_74953",
-        "type": "mutate",
-        "reasoning": "Using run 81206 (4 coils) as base since it had moderate force violations. Switching to MUSE with high force/torque limits and relaxed but reasonable engineering constraints."
-      },
-      {
-        "case_id": "2026-03-12_145203_28801",
-        "type": "explore",
-        "reasoning": "Exploring maximum coil count to see if 6 coils can distribute forces well enough to achieve feasibility with more aggressive force/torque thresholds while using tight engineering constraints."
-      },
-      {
-        "case_id": "2026-03-12_145203_77452",
-        "type": "mutate",
-        "reasoning": "Building on run 82267 which had very tight cc margins. Switching to MUSE with 4 coils instead of 3, near-maximum force/torque limits, and baseline-level engineering constraints."
-      },
-      {
-        "case_id": "2026-03-12_145203_26722",
-        "type": "explore",
-        "reasoning": "Testing if MUSE surface geometry naturally produces lower forces by using moderate force/torque thresholds with very relaxed engineering constraints to see if we can achieve both force feasibility and good coil quality."
-      },
-      {
-        "case_id": "2026-03-12_145203_43167",
-        "type": "mutate",
-        "reasoning": "Mutating run 85472 to MUSE with 4 coils instead of 3, high force/torque limits, and relaxed engineering constraints to balance feasibility with performance on the new surface."
-      }
-    ]
-  },
-  {
     "timestamp": "2026-03-12 15:07:27",
     "entries": [
       {
@@ -2674,6 +2619,46 @@
       },
       {
         "case_id": "2026-04-06_164317_38583",
+        "type": "mutate",
+        "reasoning": "Converting 6-coil parent to QH surface with 5 coils and high force threshold while maintaining reasonable engineering constraints to find optimal configuration."
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-04-06 17:56:36",
+    "entries": [
+      {
+        "case_id": "2026-04-06_175636_65727",
+        "type": "mutate",
+        "reasoning": "Converting best 5-coil parent to baseline 4-coil QH configuration with maximum force threshold and relaxed constraints to test standard setup."
+      },
+      {
+        "case_id": "2026-04-06_175636_33793",
+        "type": "mutate",
+        "reasoning": "Converting tight-margin 6-coil parent to QH surface with high force threshold and relaxed engineering constraints to test if more coils distribute forces better."
+      },
+      {
+        "case_id": "2026-04-06_175636_12644",
+        "type": "explore",
+        "reasoning": "Exploring minimum coil count on QH surface with relaxed constraints to see if fewer coils can achieve feasibility with different surface geometry."
+      },
+      {
+        "case_id": "2026-04-06_175636_81673",
+        "type": "mutate",
+        "reasoning": "Converting best 5-coil parent to QH surface with maximum force threshold and very relaxed engineering constraints to maintain 5-coil configuration."
+      },
+      {
+        "case_id": "2026-04-06_175636_16371",
+        "type": "explore",
+        "reasoning": "Testing maximum coil count to see if 6 coils can distribute forces well enough to achieve feasibility with moderate force threshold on QH surface."
+      },
+      {
+        "case_id": "2026-04-06_175636_16951",
+        "type": "explore",
+        "reasoning": "Testing if 5 coils with moderate force threshold can achieve feasibility by balancing force distribution with relaxed engineering constraints."
+      },
+      {
+        "case_id": "2026-04-06_175636_38277",
         "type": "mutate",
         "reasoning": "Converting 6-coil parent to QH surface with 5 coils and high force threshold while maintaining reasonable engineering constraints to find optimal configuration."
       }
