@@ -1,60 +1,5 @@
 [
   {
-    "timestamp": "2026-03-12 15:11:17",
-    "entries": [
-      {
-        "case_id": "2026-03-12_151117_45297",
-        "type": "mutate",
-        "reasoning": "Building on the best 3-coil QA parent but switching to MUSE surface with 4 coils and maximum allowed force/torque thresholds to address the severe violations. Using baseline MUSE cc/cs thresholds."
-      },
-      {
-        "case_id": "2026-03-12_151117_19193",
-        "type": "mutate",
-        "reasoning": "Using the 4-coil parent with smallest force violations as base. Switching to MUSE with high but not maximum force/torque limits and relaxed engineering constraints to find feasible solutions."
-      },
-      {
-        "case_id": "2026-03-12_151117_71348",
-        "type": "explore",
-        "reasoning": "Exploring 3 coils on MUSE with maximum force/torque limits and relaxed engineering constraints to establish if fewer coils can achieve feasibility with the new surface geometry."
-      },
-      {
-        "case_id": "2026-03-12_151117_95937",
-        "type": "mutate",
-        "reasoning": "Building on the parent with very tight cc margins. Switching to MUSE with 4 coils instead of 3, maximum force/torque limits, and minimum allowed cc threshold to test feasibility."
-      },
-      {
-        "case_id": "2026-03-12_151117_64169",
-        "type": "explore",
-        "reasoning": "Testing if 5 coils can distribute forces better and achieve feasibility with more moderate force/torque thresholds while maintaining reasonable engineering constraints."
-      },
-      {
-        "case_id": "2026-03-12_151117_12942",
-        "type": "mutate",
-        "reasoning": "Using the 4-coil parent with moderate force violations as base. Switching to MUSE with high force/torque limits and relaxed but reasonable engineering constraints."
-      },
-      {
-        "case_id": "2026-03-12_151117_80594",
-        "type": "explore",
-        "reasoning": "Exploring maximum coil count to see if 6 coils can distribute forces well enough to achieve feasibility with more aggressive force/torque thresholds while using tighter engineering constraints."
-      },
-      {
-        "case_id": "2026-03-12_151117_15530",
-        "type": "mutate",
-        "reasoning": "Mutating a 3-coil parent to MUSE with 4 coils instead of 3, high force/torque limits, and relaxed engineering constraints to balance feasibility with performance on the new surface."
-      },
-      {
-        "case_id": "2026-03-12_151117_54397",
-        "type": "explore",
-        "reasoning": "Testing if MUSE surface geometry naturally produces lower forces by using moderate force/torque thresholds with very relaxed engineering constraints to see if we can achieve both force feasibility and good coil quality."
-      },
-      {
-        "case_id": "2026-03-12_151117_55805",
-        "type": "mutate",
-        "reasoning": "Using a 3-coil parent as base, switching to MUSE with moderately high force/torque limits and near-baseline MUSE thresholds to test if the MUSE surface geometry produces lower forces than QA."
-      }
-    ]
-  },
-  {
     "timestamp": "2026-03-12 15:15:07",
     "entries": [
       {
@@ -2656,6 +2601,61 @@
         "case_id": "2026-04-06_203117_14966",
         "type": "mutate",
         "reasoning": "Converting 6-coil parent to QH surface with 5 coils and high force threshold while maintaining reasonable engineering constraints to find optimal configuration."
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-04-07 18:24:37",
+    "entries": [
+      {
+        "case_id": "2026-04-07_182437_68231",
+        "type": "mutate",
+        "reasoning": "Building on best 6-coil QA parent, switching to QH surface with 5 coils and maximum force threshold to address severe violations. Using very relaxed engineering constraints."
+      },
+      {
+        "case_id": "2026-04-07_182437_46288",
+        "type": "mutate",
+        "reasoning": "Converting best 4-coil parent to QH surface with maximum force threshold and relaxed constraints to test baseline QH configuration."
+      },
+      {
+        "case_id": "2026-04-07_182437_49397",
+        "type": "explore",
+        "reasoning": "Starting with baseline QH reference case but using maximum force threshold to establish feasibility on this surface where all runs have severe force violations."
+      },
+      {
+        "case_id": "2026-04-07_182437_72182",
+        "type": "mutate",
+        "reasoning": "Converting tight-margin 6-coil parent to QH surface with 5 coils and high force threshold to test if more coils distribute forces better."
+      },
+      {
+        "case_id": "2026-04-07_182437_57107",
+        "type": "explore",
+        "reasoning": "Exploring minimum coil count on QH surface with relaxed constraints to see if fewer coils can achieve feasibility with different surface geometry."
+      },
+      {
+        "case_id": "2026-04-07_182437_89913",
+        "type": "mutate",
+        "reasoning": "Converting 4-coil parent to QH surface with maximum force threshold and very relaxed constraints to maintain baseline QH coil count."
+      },
+      {
+        "case_id": "2026-04-07_182437_97992",
+        "type": "explore",
+        "reasoning": "Testing maximum coil count to see if 6 coils can distribute forces well enough to achieve feasibility with moderate force threshold on QH surface."
+      },
+      {
+        "case_id": "2026-04-07_182437_30019",
+        "type": "mutate",
+        "reasoning": "Converting 6-coil parent to baseline 4-coil QH configuration with high force threshold to address both force and separation violations."
+      },
+      {
+        "case_id": "2026-04-07_182437_19902",
+        "type": "explore",
+        "reasoning": "Testing if 5 coils with moderate force threshold can achieve feasibility by balancing force distribution with reasonable engineering constraints."
+      },
+      {
+        "case_id": "2026-04-07_182437_30710",
+        "type": "mutate",
+        "reasoning": "Converting 4-coil parent to QH surface with 5 coils and high force threshold to find optimal configuration balancing feasibility and performance."
       }
     ]
   }
