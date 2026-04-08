@@ -1,0 +1,55 @@
+{
+  "case_id": "2026-04-07_220028_89448",
+  "parent_ids": [],
+  "tags": [
+    "explore",
+    "llm"
+  ],
+  "proposer_mode": "llm",
+  "resource": {
+    "max_total_iterations": 500,
+    "timeout_minutes": 60
+  },
+  "case_config": {
+    "description": "LLM explore: input.LandremanPaul2021_QH_reactorScale_lowres ncoils=4 order=4",
+    "surface_params": {
+      "surface": "input.LandremanPaul2021_QH_reactorScale_lowres",
+      "range": "half period"
+    },
+    "coils_params": {
+      "ncoils": 4,
+      "order": 4
+    },
+    "optimizer_params": {
+      "algorithm": "augmented_lagrangian",
+      "max_iterations": 500,
+      "verbose": true
+    },
+    "coil_objective_terms": {
+      "total_length": "l2_threshold",
+      "coil_curvature": "lp_threshold",
+      "coil_curvature_p": 2,
+      "coil_mean_squared_curvature": "l2_threshold",
+      "coil_arclength_variation": "l2_threshold",
+      "linking_number": "",
+      "cc_threshold": 0.8,
+      "cs_threshold": 1.3,
+      "force_threshold": 500.0,
+      "torque_threshold": 500.0,
+      "curvature_threshold": 5.0,
+      "msc_threshold": 5.0,
+      "length_threshold": 180.0,
+      "coil_coil_torque": "lp_threshold"
+    },
+    "fourier_continuation": {
+      "enabled": true,
+      "orders": [
+        4,
+        8,
+        16
+      ]
+    }
+  },
+  "random_seed": 857256064,
+  "llm_reasoning": "Starting with baseline QH reference case but using maximum force/torque thresholds to establish feasibility on this surface where all runs have severe force violations."
+}
