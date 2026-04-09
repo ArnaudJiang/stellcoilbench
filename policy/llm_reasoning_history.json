@@ -1,60 +1,5 @@
 [
   {
-    "timestamp": "2026-03-12 17:19:18",
-    "entries": [
-      {
-        "case_id": "2026-03-12_171918_85392",
-        "type": "mutate",
-        "reasoning": "Building on best 3-coil QA parent, switching to MUSE with 4 coils and maximum force/torque thresholds to address severe violations. Using baseline MUSE cc/cs thresholds."
-      },
-      {
-        "case_id": "2026-03-12_171918_45802",
-        "type": "mutate",
-        "reasoning": "Using 4-coil parent with smallest force violations as base. Switching to MUSE with high but not maximum force/torque limits and relaxed engineering constraints."
-      },
-      {
-        "case_id": "2026-03-12_171918_16067",
-        "type": "explore",
-        "reasoning": "Exploring 3 coils on MUSE with maximum force/torque limits and relaxed engineering constraints to establish if fewer coils can achieve feasibility."
-      },
-      {
-        "case_id": "2026-03-12_171918_36178",
-        "type": "mutate",
-        "reasoning": "Building on parent with very tight cc margins. Switching to MUSE with 4 coils instead of 3, maximum force/torque limits, and minimum allowed cc threshold."
-      },
-      {
-        "case_id": "2026-03-12_171918_14825",
-        "type": "explore",
-        "reasoning": "Testing if 5 coils can distribute forces better and achieve feasibility with more moderate force/torque thresholds while maintaining reasonable engineering constraints."
-      },
-      {
-        "case_id": "2026-03-12_171918_85869",
-        "type": "mutate",
-        "reasoning": "Using 4-coil parent with moderate force violations as base. Switching to MUSE with high force/torque limits and relaxed but reasonable engineering constraints."
-      },
-      {
-        "case_id": "2026-03-12_171918_88378",
-        "type": "explore",
-        "reasoning": "Exploring maximum coil count to see if 6 coils can distribute forces well enough to achieve feasibility with more aggressive force/torque thresholds."
-      },
-      {
-        "case_id": "2026-03-12_171918_27593",
-        "type": "mutate",
-        "reasoning": "Mutating 3-coil parent to MUSE with 4 coils instead of 3, high force/torque limits, and relaxed engineering constraints to balance feasibility with performance."
-      },
-      {
-        "case_id": "2026-03-12_171918_72950",
-        "type": "explore",
-        "reasoning": "Testing if MUSE surface geometry naturally produces lower forces by using moderate force/torque thresholds with very relaxed engineering constraints."
-      },
-      {
-        "case_id": "2026-03-12_171918_86343",
-        "type": "mutate",
-        "reasoning": "Using 3-coil parent as base, switching to MUSE with moderately high force/torque limits and near-baseline MUSE thresholds to test if MUSE geometry produces lower forces."
-      }
-    ]
-  },
-  {
     "timestamp": "2026-03-12 17:27:42",
     "entries": [
       {
@@ -2516,6 +2461,61 @@
         "case_id": "2026-04-09_055852_76024",
         "type": "mutate",
         "reasoning": "Building on the 5-coil QH parent with tight margins, applying maximum force/torque thresholds and relaxed engineering constraints to address severe violations while maintaining good coil count."
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-04-09 07:16:35",
+    "entries": [
+      {
+        "case_id": "2026-04-09_071635_51179",
+        "type": "mutate",
+        "reasoning": "Building on the only successful QH parent with feasible score. Maintaining maximum force/torque thresholds and slightly relaxing cc threshold to address the tight cc margin."
+      },
+      {
+        "case_id": "2026-04-09_071635_36569",
+        "type": "explore",
+        "reasoning": "Exploring minimum coil count on QH surface with maximum allowed force/torque thresholds and relaxed engineering constraints to see if fewer coils can achieve feasibility."
+      },
+      {
+        "case_id": "2026-04-09_071635_87336",
+        "type": "mutate",
+        "reasoning": "Converting the 6-coil QH parent to 5 coils with maximum force/torque thresholds and relaxed cc to address both force and separation violations while reducing complexity."
+      },
+      {
+        "case_id": "2026-04-09_071635_30948",
+        "type": "explore",
+        "reasoning": "Testing if 5 coils with high but not maximum force/torque thresholds can achieve feasibility by balancing force distribution with moderate engineering constraints."
+      },
+      {
+        "case_id": "2026-04-09_071635_84889",
+        "type": "mutate",
+        "reasoning": "Building on the 5-coil QH parent with tight margins, applying maximum force/torque thresholds and relaxing both cc and cs constraints to address multiple violations."
+      },
+      {
+        "case_id": "2026-04-09_071635_66414",
+        "type": "explore",
+        "reasoning": "Testing maximum coil count to see if 6 coils can distribute forces well enough to achieve feasibility with moderate force/torque thresholds and relaxed cc constraints."
+      },
+      {
+        "case_id": "2026-04-09_071635_45009",
+        "type": "mutate",
+        "reasoning": "Using the 4-coil QH parent with maximum force/torque thresholds and significantly relaxed cc threshold to address the severe cc violation while maintaining baseline QH configuration."
+      },
+      {
+        "case_id": "2026-04-09_071635_77678",
+        "type": "explore",
+        "reasoning": "Exploring baseline QH configuration with maximum allowed thresholds across all constraints to establish an upper bound for feasibility on this challenging surface."
+      },
+      {
+        "case_id": "2026-04-09_071635_89822",
+        "type": "mutate",
+        "reasoning": "Converting the best 3-coil QA parent to baseline 4-coil QH configuration with maximum force/torque thresholds to test if QH surface geometry produces lower forces than QA."
+      },
+      {
+        "case_id": "2026-04-09_071635_49198",
+        "type": "mutate",
+        "reasoning": "Converting the second-best 3-coil QA parent to 5-coil QH configuration with maximum force/torque thresholds to test if more coils can distribute forces better on QH geometry."
       }
     ]
   }
