@@ -37,6 +37,7 @@ class CoilsParams(TypedDict, total=False):
     ncoils: int
     order: int
     target_B: float
+    initial_coils_path: str
     coil_width: float
     vv_extension: float
     inboard_radius: float
@@ -46,10 +47,39 @@ class OptimizerParams(TypedDict, total=False):
     """Typed dictionary for optimizer parameter configuration."""
 
     algorithm: str
+    backend: str
     max_iterations: int
     verbose: bool
     algorithm_options: dict
     max_iter_subopt: int
+
+
+class FocusParams(TypedDict, total=False):
+    """Typed dictionary for FOCUS backend configuration."""
+
+    executable: str
+    arguments: list[str]
+    input_files: list[str]
+    output_harmonics_file: str
+    output_filaments_file: str
+    output_h5_file: str
+    parser: str
+    timeout_seconds: int
+    skip_run: bool
+    nfp: int
+    stellsym: bool
+    numquadpoints: int
+
+
+class FiniteSectionFieldParams(TypedDict, total=False):
+    """Typed dictionary for finite-section magnetic-field approximation."""
+
+    enabled: bool
+    width: float
+    height: float
+    n_width: int
+    n_height: int
+    current_distribution: str
 
 
 @dataclass
@@ -71,6 +101,10 @@ class CaseConfig:
         Optional coil regularization terms (length, curvature, distances).
     fourier_continuation : dict[str, Any] | None
         Optional Fourier continuation orders for progressive refinement.
+    focus_params : dict[str, Any] | None
+        Optional controls for the external FOCUS optimization backend.
+    finite_section_field : dict[str, Any] | None
+        Optional finite cross-section magnetic-field approximation controls.
     post_processing_params : dict[str, Any] | None
         Optional post-processing options (VMEC, Poincaré, etc.).
     """
@@ -82,6 +116,8 @@ class CaseConfig:
     scoring: dict[str, Any] | None = None
     coil_objective_terms: dict[str, Any] | None = None
     fourier_continuation: dict[str, Any] | None = None
+    focus_params: FocusParams | None = None
+    finite_section_field: FiniteSectionFieldParams | None = None
     post_processing_params: dict[str, Any] | None = None
 
     @classmethod
@@ -107,6 +143,8 @@ class CaseConfig:
             scoring=data.get("scoring"),
             coil_objective_terms=data.get("coil_objective_terms"),
             fourier_continuation=data.get("fourier_continuation"),
+            focus_params=data.get("focus_params"),
+            finite_section_field=data.get("finite_section_field"),
             post_processing_params=data.get("post_processing_params")
             or data.get("post_processing"),
         )

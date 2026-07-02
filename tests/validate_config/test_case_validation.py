@@ -59,6 +59,96 @@ class TestValidateCaseConfig:
         errors = validate_case_config(data)
         assert errors == []
 
+    def test_valid_focus_backend_config(self):
+        """FOCUS backend configs validate when executable and output are configured."""
+        data = _merge(
+            _base_config(),
+            {
+                "optimizer_params": {"backend": "focus", "max_iterations": 10},
+                "focus_params": {
+                    "executable": "focus",
+                    "output_harmonics_file": "nfp4_422.focus",
+                    "parser": "focus_fourier",
+                },
+            },
+        )
+        errors = validate_case_config(data)
+        assert errors == []
+
+    def test_focus_backend_requires_executable(self):
+        """FOCUS backend needs an executable unless skip_run is true."""
+        data = _merge(
+            _base_config(),
+            {
+                "optimizer_params": {"backend": "focus"},
+                "focus_params": {"output_harmonics_file": "nfp4_422.focus"},
+            },
+        )
+        errors = validate_case_config(data)
+        assert_errors_contain(errors, "focus_params.executable is required")
+
+    def test_focus_backend_rejects_unknown_parser(self):
+        """FOCUS parser names are validated early."""
+        data = _merge(
+            _base_config(),
+            {
+                "optimizer_params": {"backend": "focus"},
+                "focus_params": {
+                    "executable": "focus",
+                    "output_harmonics_file": "nfp4_422.focus",
+                    "parser": "not-a-parser",
+                },
+            },
+        )
+        errors = validate_case_config(data)
+        assert_errors_contain(errors, "focus_params.parser must be one of")
+
+    def test_valid_finite_section_field(self):
+        """finite_section_field accepts a uniform rectangular filament bundle."""
+        data = _merge(
+            _base_config(),
+            {
+                "finite_section_field": {
+                    "enabled": True,
+                    "width": 0.10,
+                    "height": 0.10,
+                    "n_width": 3,
+                    "n_height": 3,
+                    "current_distribution": "uniform",
+                }
+            },
+        )
+        errors = validate_case_config(data)
+        assert errors == []
+
+    def test_invalid_finite_section_field(self):
+        """finite_section_field rejects invalid dimensions and distributions."""
+        data = _merge(
+            _base_config(),
+            {
+                "finite_section_field": {
+                    "enabled": "yes",
+                    "width": 0.0,
+                    "height": -0.1,
+                    "n_width": 0,
+                    "n_height": 2.5,
+                    "current_distribution": "gaussian",
+                    "extra": True,
+                }
+            },
+        )
+        errors = validate_case_config(data)
+        assert_errors_contain(
+            errors,
+            "finite_section_field.enabled must be a boolean",
+            "finite_section_field.width must be a positive number",
+            "finite_section_field.height must be a positive number",
+            "finite_section_field.n_width must be a positive integer",
+            "finite_section_field.n_height must be a positive integer",
+            "finite_section_field.current_distribution must be 'uniform'",
+            "Unknown finite_section_field key: 'extra'",
+        )
+
     def test_missing_required_fields(self):
         """Test validation with missing required fields."""
         data = {"description": "Test case"}
@@ -283,6 +373,47 @@ class TestValidateCaseConfig:
         )
         errors = validate_case_config(data)
         assert errors == []
+
+    def test_valid_link_guard_params(self):
+        """Test validation with topology guard parameters."""
+        data = _merge(
+            _base_config(),
+            {
+                "coils_params": {"ncoils": 4},
+                "coil_objective_terms": {
+                    "link_guard": True,
+                    "link_guard_interval": 5,
+                    "link_guard_penalty": 1e12,
+                    "link_guard_tolerance": 0.5,
+                    "link_guard_rollback": True,
+                },
+            },
+        )
+        errors = validate_case_config(data)
+        assert errors == []
+
+    def test_invalid_link_guard_params(self):
+        """Test validation rejects invalid topology guard parameters."""
+        data = _merge(
+            _base_config(),
+            {
+                "coils_params": {"ncoils": 4},
+                "coil_objective_terms": {
+                    "link_guard": "yes",
+                    "link_guard_interval": 0,
+                    "link_guard_penalty": -1.0,
+                    "link_guard_rollback": "yes",
+                },
+            },
+        )
+        errors = validate_case_config(data)
+        assert_errors_contain(
+            errors,
+            "link_guard must be a boolean",
+            "link_guard_interval must be a positive integer",
+            "link_guard_penalty must be a positive number",
+            "link_guard_rollback must be a boolean",
+        )
 
     def test_all_named_weights_valid(self):
         """Test validation with all named weight parameters."""

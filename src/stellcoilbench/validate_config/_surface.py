@@ -80,7 +80,13 @@ def _validate_surface_exists(
     if surfaces_dir is None:
         # Package is at src/stellcoilbench/validate_config/_surface.py -> parents[3] = repo root
         surfaces_dir = Path(__file__).resolve().parents[3] / "plasma_surfaces"
-    if surfaces_dir.is_dir() and not (surfaces_dir / surface).exists():
+    surface_path = Path(str(surface))
+    candidates = [
+        surface_path if surface_path.is_absolute() else surfaces_dir / surface_path,
+    ]
+    if not surface_path.is_absolute() and surface_path.parts[:1] == ("plasma_surfaces",):
+        candidates.append(surfaces_dir.parent / surface_path)
+    if surfaces_dir.is_dir() and not any(candidate.exists() for candidate in candidates):
         available = sorted(f.name for f in surfaces_dir.iterdir() if f.is_file())
         errors.append(
             f'{pfx}surface_params.surface "{surface}" not found in '

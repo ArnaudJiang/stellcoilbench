@@ -181,6 +181,14 @@ def resolve_surface_path(
     Path | None
         Path to surface file if found; None otherwise.
     """
+    direct = Path(surface_name).expanduser()
+    if direct.exists():
+        return direct
+    if not direct.is_absolute():
+        cwd_direct = Path.cwd() / direct
+        if cwd_direct.exists():
+            return cwd_direct
+
     # Exact match
     for base in base_dirs:
         if not base.exists():

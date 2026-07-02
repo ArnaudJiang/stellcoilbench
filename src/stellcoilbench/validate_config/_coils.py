@@ -32,6 +32,7 @@ def _validate_coils_params(coils_params: Any, pfx: str) -> list[str]:
         "ncoils",
         "order",
         "coil_type",
+        "initial_coils_path",
         "vv_extension",
         "inboard_radius",
         "wp_fil_spacing",

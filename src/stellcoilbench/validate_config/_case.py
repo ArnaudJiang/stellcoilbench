@@ -13,7 +13,11 @@ from yaml import YAMLError
 
 from ._algorithm import _validate_optimizer_params
 from ._coils import _validate_coils_params
-from ._objectives import _validate_fourier_continuation, _validate_objective_terms
+from ._objectives import (
+    _validate_finite_section_field,
+    _validate_fourier_continuation,
+    _validate_objective_terms,
+)
 from ._surface import _validate_surface_exists, _validate_surface_params
 
 
@@ -60,11 +64,19 @@ def validate_case_config(
     if "coils_params" in data:
         errors.extend(_validate_coils_params(data["coils_params"], pfx))
     if "optimizer_params" in data:
-        errors.extend(_validate_optimizer_params(data["optimizer_params"], pfx))
+        errors.extend(
+            _validate_optimizer_params(
+                data["optimizer_params"],
+                pfx,
+                focus_params=data.get("focus_params"),
+            )
+        )
     if "coil_objective_terms" in data:
         errors.extend(_validate_objective_terms(data["coil_objective_terms"], pfx))
     if "fourier_continuation" in data:
         errors.extend(_validate_fourier_continuation(data["fourier_continuation"], pfx))
+    if "finite_section_field" in data:
+        errors.extend(_validate_finite_section_field(data["finite_section_field"], pfx))
 
     return errors
 

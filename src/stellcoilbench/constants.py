@@ -41,7 +41,7 @@ MAX_ADAPTIVE_ITERATIONS: int = 50
 ADAPTIVE_TOLERANCE: float = 0.1
 """Fractional tolerance (10%) for distance constraint checks in adaptive search."""
 
-DEFAULT_COIL_QUADPOINTS: int = 200
+DEFAULT_COIL_QUADPOINTS: int = 256
 """Default number of quadrature points along each coil curve."""
 
 # ---------------------------------------------------------------------------

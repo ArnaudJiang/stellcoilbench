@@ -50,6 +50,14 @@ _VALID_WEIGHT_NAMES = {
     "structural_stress_weight",
 }
 
+_VALID_LINK_GUARD_PARAMS = {
+    "link_guard",
+    "link_guard_interval",
+    "link_guard_penalty",
+    "link_guard_tolerance",
+    "link_guard_rollback",
+}
+
 _VALID_STRUCTURAL_PARAMS = {
     "structural_mesh_resolution_coarse",
     "structural_mesh_resolution_fine",
@@ -78,6 +86,7 @@ def _validate_objective_terms(obj_terms: Any, pfx: str) -> list[str]:
         set(_TERM_OPTIONS)
         | _VALID_THRESHOLD_NAMES
         | _VALID_WEIGHT_NAMES
+        | _VALID_LINK_GUARD_PARAMS
         | _VALID_STRUCTURAL_PARAMS
     )
 
@@ -86,6 +95,23 @@ def _validate_objective_terms(obj_terms: Any, pfx: str) -> list[str]:
             if not _is_valid_non_negative_number(term_value):
                 errors.append(
                     f"{pfx}coil_objective_terms.{term_name} must be a non-negative number"
+                )
+            continue
+
+        if term_name in _VALID_LINK_GUARD_PARAMS:
+            if term_name in ("link_guard", "link_guard_rollback"):
+                if not isinstance(term_value, bool):
+                    errors.append(
+                        f"{pfx}coil_objective_terms.{term_name} must be a boolean"
+                    )
+            elif term_name == "link_guard_interval":
+                if not isinstance(term_value, int) or term_value < 1:
+                    errors.append(
+                        f"{pfx}coil_objective_terms.{term_name} must be a positive integer"
+                    )
+            elif not _is_valid_positive_number(term_value):
+                errors.append(
+                    f"{pfx}coil_objective_terms.{term_name} must be a positive number"
                 )
             continue
 
@@ -208,4 +234,48 @@ def _validate_fourier_continuation(fc: Any, pfx: str) -> list[str]:
             errors.append(
                 f"{pfx}fourier_continuation.orders must be in ascending order"
             )
+    return errors
+
+
+def _validate_finite_section_field(fs: Any, pfx: str) -> list[str]:
+    """Validate the finite_section_field section of a case config."""
+    errors: list[str] = []
+    if not isinstance(fs, dict):
+        return [f"{pfx}finite_section_field must be a dictionary"]
+
+    valid_keys = {
+        "enabled",
+        "width",
+        "height",
+        "n_width",
+        "n_height",
+        "current_distribution",
+    }
+    for key in fs:
+        if key not in valid_keys:
+            errors.append(
+                f"{pfx}Unknown finite_section_field key: '{key}'. "
+                f"Valid keys: {sorted(valid_keys)}"
+            )
+
+    if "enabled" in fs and not isinstance(fs["enabled"], bool):
+        errors.append(f"{pfx}finite_section_field.enabled must be a boolean")
+
+    for key in ("width", "height"):
+        if key in fs and not _is_valid_positive_number(fs[key]):
+            errors.append(f"{pfx}finite_section_field.{key} must be a positive number")
+
+    for key in ("n_width", "n_height"):
+        if key in fs:
+            value = fs[key]
+            if not isinstance(value, int) or value < 1:
+                errors.append(
+                    f"{pfx}finite_section_field.{key} must be a positive integer"
+                )
+
+    if "current_distribution" in fs and fs["current_distribution"] != "uniform":
+        errors.append(
+            f"{pfx}finite_section_field.current_distribution must be 'uniform'"
+        )
+
     return errors
