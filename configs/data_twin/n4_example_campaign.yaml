@@ -1,0 +1,30 @@
+campaign_id: n4_coil_data_twin_v1
+name: n4 coil optimization data twin
+description: Data twin layer for n=4 coil optimization experiments.
+target_type: stellarator_coil_optimization
+
+target_metadata:
+  n_coils: 4
+  backend_family: stellcoilbench
+  device: example_stellarator
+
+schema_version: 0.1
+
+metric_policy:
+  required:
+    - final_squared_flux
+    - total_coil_length
+    - max_curvature
+    - p95_curvature
+    - min_coil_coil_distance
+    - min_coil_plasma_distance
+
+failure_thresholds:
+  max_curvature: 100.0
+  min_coil_coil_distance: 0.05
+  min_coil_plasma_distance: 0.10
+  poor_Bn_threshold: 1.0e-3
+
+storage:
+  root: experiments/data_twin
+  format: jsonl
