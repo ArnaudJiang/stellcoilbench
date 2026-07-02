@@ -13,6 +13,7 @@ Constants are overridable via environment variables:
   STELLCOILBENCH_AUTOPILOT_MAX_CASES
   STELLCOILBENCH_AUTOPILOT_POLL_INTERVAL
   STELLCOILBENCH_AUTOPILOT_DEFAULT_TIMEOUT_MIN
+  STELLCOILBENCH_AUTOPILOT_POLICY_FILE
 
 Usage:
   python -m tools.ci_autopilot_runner
@@ -38,6 +39,9 @@ MAX_CASES = int(os.environ.get("STELLCOILBENCH_AUTOPILOT_MAX_CASES", "10"))
 POLL_INTERVAL = int(os.environ.get("STELLCOILBENCH_AUTOPILOT_POLL_INTERVAL", "60"))
 DEFAULT_TIMEOUT_MIN = int(
     os.environ.get("STELLCOILBENCH_AUTOPILOT_DEFAULT_TIMEOUT_MIN", "60")
+)
+POLICY_FILE = Path(
+    os.environ.get("STELLCOILBENCH_AUTOPILOT_POLICY_FILE", "policy/proposer_policy.yaml")
 )
 STATUS_FILE = LOG_DIR / "_status.txt"
 
@@ -79,7 +83,7 @@ def _launch(case_path: Path, log_path: Path) -> subprocess.Popen:
         "--output-dir",
         str(DONE_DIR),
         "--policy",
-        "policy/proposer_policy.yaml",
+        str(POLICY_FILE),
     ]
     with open(log_path, "w") as f:
         return subprocess.Popen(

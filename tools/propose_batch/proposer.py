@@ -6,6 +6,7 @@ import math
 from typing import Any, Dict, List, Tuple
 
 from stellcoilbench.validate_config import validate_ci_case
+from stellcoilbench.path_utils import get_surface_filename
 
 from .ga import (
     _config_hash_short,
@@ -53,6 +54,31 @@ def is_safe_mode(ctx: Dict[str, Any], policy: Dict[str, Any]) -> bool:
     return fail_rate > threshold
 
 
+def _allowed_parent_surfaces(policy: Dict[str, Any]) -> set[str]:
+    """Return configured surfaces that exploit parents must match."""
+    mut_surfaces = policy.get("mutation", {}).get("surfaces")
+    if isinstance(mut_surfaces, list) and mut_surfaces:
+        return {str(s) for s in mut_surfaces}
+    expl_surfaces = policy.get("exploration", {}).get("surfaces")
+    if isinstance(expl_surfaces, list) and expl_surfaces:
+        return {str(s) for s in expl_surfaces}
+    return set()
+
+
+def _filter_parents_by_surface(
+    parents: List[Dict[str, Any]], policy: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """Keep only parents matching the configured surface list."""
+    allowed = _allowed_parent_surfaces(policy)
+    if not allowed:
+        return parents
+    return [
+        parent
+        for parent in parents
+        if get_surface_filename(parent.get("case_config", {})) in allowed
+    ]
+
+
 def propose_batch(
     ctx: Dict[str, Any],
     policy: Dict[str, Any],
@@ -67,7 +93,7 @@ def propose_batch(
     exploit_count = int(math.floor(exploit_frac * batch_size))
     explore_count = batch_size - exploit_count
 
-    parents = ctx.get("top_parents", [])
+    parents = _filter_parents_by_surface(ctx.get("top_parents", []), policy)
     recent_hashes = set(ctx.get("recent_config_hashes", []))
 
     cases: List[Dict[str, Any]] = []

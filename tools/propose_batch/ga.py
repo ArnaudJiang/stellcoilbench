@@ -57,6 +57,57 @@ def _config_hash_short(cfg: Dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode()).hexdigest()[:16]
 
 
+def _copy_finite_section_field(policy: Dict[str, Any], cfg: Dict[str, Any]) -> None:
+    """Copy finite-section magnetic-field settings from policy into a case."""
+    fs = policy.get("finite_section_field")
+    if isinstance(fs, dict):
+        cfg["finite_section_field"] = dict(fs)
+
+
+def _choose_algorithm(
+    rng: _random.Random,
+    policy_block: Dict[str, Any],
+    fallback: str,
+) -> str:
+    """Choose an optimizer algorithm from a policy block."""
+    algorithms = policy_block.get("algorithms")
+    if isinstance(algorithms, list) and algorithms:
+        return str(rng.choice(algorithms))
+    return fallback
+
+
+def _policy_surfaces(policy: Dict[str, Any]) -> list[str]:
+    """Return preferred surfaces from mutation or exploration policy."""
+    mut_surfaces = policy.get("mutation", {}).get("surfaces")
+    if isinstance(mut_surfaces, list) and mut_surfaces:
+        return [str(s) for s in mut_surfaces]
+    expl_surfaces = policy.get("exploration", {}).get("surfaces")
+    if isinstance(expl_surfaces, list) and expl_surfaces:
+        return [str(s) for s in expl_surfaces]
+    return []
+
+
+def _apply_surface_policy(policy: Dict[str, Any], cfg: Dict[str, Any]) -> None:
+    """Force mutated cases onto the policy-selected surface when configured."""
+    surfaces = _policy_surfaces(policy)
+    if surfaces:
+        surface_params = cfg.setdefault("surface_params", {})
+        surface_params["surface"] = surfaces[0]
+        surface_params.setdefault("range", "half period")
+
+
+def _apply_fourier_continuation_policy(policy: Dict[str, Any], cfg: Dict[str, Any]) -> None:
+    """Apply or remove Fourier continuation according to policy."""
+    fc = policy.get("fourier_continuation", {})
+    if fc and fc.get("enabled") and fc.get("orders"):
+        cfg["fourier_continuation"] = {
+            "enabled": True,
+            "orders": list(fc["orders"]),
+        }
+    else:
+        cfg.pop("fourier_continuation", None)
+
+
 def mutate_case(
     parent: Dict[str, Any],
     policy: Dict[str, Any],
@@ -75,7 +126,11 @@ def mutate_case(
     t_sigma = float(mut.get("threshold_sigma", 0.10))
 
     opt = child_cfg.get("optimizer_params", {})
-    opt["algorithm"] = "augmented_lagrangian"
+    opt["algorithm"] = _choose_algorithm(
+        rng,
+        mut,
+        child_cfg.get("optimizer_params", {}).get("algorithm", "augmented_lagrangian"),
+    )
 
     obj = child_cfg.get("coil_objective_terms", {})
     if obj is None:
@@ -137,17 +192,13 @@ def mutate_case(
 
     child_cfg["coils_params"] = coils_params
 
+    _apply_surface_policy(policy, child_cfg)
     surface = get_surface_filename(child_cfg) or "unknown"
     ncoils = coils_params.get("ncoils", 4)
     order = coils_params.get("order", 4)
     child_cfg["description"] = f"Mutation: {surface} ncoils={ncoils} order={order}"
 
-    fc = policy.get("fourier_continuation", {})
-    if fc and fc.get("enabled") and fc.get("orders"):
-        child_cfg["fourier_continuation"] = {
-            "enabled": True,
-            "orders": list(fc["orders"]),
-        }
+    _apply_fourier_continuation_policy(policy, child_cfg)
 
     mut_policy = policy.get("mutation", {})
     opt["max_iterations"] = mut_policy.get("max_iterations", 1000)
@@ -158,6 +209,8 @@ def mutate_case(
     dof_perturbation = float(mut.get("dof_perturbation", 0.01))
     if dof_perturbation > 0:
         child_cfg["dof_perturbation"] = dof_perturbation
+
+    _copy_finite_section_field(policy, child_cfg)
 
     new_seed = rng.randint(0, 2**31 - 1)
 
@@ -277,12 +330,9 @@ def explore_case(
     if dof_perturbation > 0:
         case_config["dof_perturbation"] = dof_perturbation
 
-    fc = policy.get("fourier_continuation", {})
-    if fc and fc.get("enabled") and fc.get("orders"):
-        case_config["fourier_continuation"] = {
-            "enabled": True,
-            "orders": list(fc["orders"]),
-        }
+    _copy_finite_section_field(policy, case_config)
+
+    _apply_fourier_continuation_policy(policy, case_config)
 
     new_seed = rng.randint(0, 2**31 - 1)
     caps = policy.get("resource_caps", {})
