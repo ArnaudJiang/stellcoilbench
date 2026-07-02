@@ -74,12 +74,98 @@ def _compute_cross_section_frame(
     return normal, binormal
 
 
+def _unit_vector(vector: np.ndarray, fallback: np.ndarray | None = None) -> np.ndarray:
+    norm = np.linalg.norm(vector)
+    if norm > 1e-14:
+        return vector / norm
+    if fallback is None:
+        raise ValueError("Cannot normalize near-zero vector")
+    return _unit_vector(np.asarray(fallback, dtype=float))
+
+
+def _rotate_vector(vector: np.ndarray, axis: np.ndarray, angle: float) -> np.ndarray:
+    axis = _unit_vector(axis)
+    return (
+        vector * np.cos(angle)
+        + np.cross(axis, vector) * np.sin(angle)
+        + axis * np.dot(axis, vector) * (1.0 - np.cos(angle))
+    )
+
+
+def _initial_parallel_normal(
+    tangent: np.ndarray,
+    reference: np.ndarray = np.array([0.0, 0.0, 1.0]),
+) -> np.ndarray:
+    tangent = _unit_vector(tangent)
+    reference = np.asarray(reference, dtype=float)
+    if abs(float(np.dot(tangent, _unit_vector(reference)))) > 0.9:
+        reference = np.array([1.0, 0.0, 0.0])
+    normal = reference - np.dot(reference, tangent) * tangent
+    if np.linalg.norm(normal) < 1e-12:
+        reference = np.array([0.0, 1.0, 0.0])
+        normal = reference - np.dot(reference, tangent) * tangent
+    return _unit_vector(normal)
+
+
+def _parallel_transport_frames(
+    tangents: np.ndarray,
+    *,
+    closed: bool = True,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Return smooth Bishop-frame normals/binormals along a sampled curve."""
+    tangents = np.asarray(tangents, dtype=float)
+    unit_tangents = np.array([_unit_vector(t) for t in tangents])
+    normal = _initial_parallel_normal(unit_tangents[0])
+    normals = [normal]
+    binormals = [_unit_vector(np.cross(unit_tangents[0], normal))]
+
+    for idx in range(1, len(unit_tangents)):
+        t_prev = unit_tangents[idx - 1]
+        t_curr = unit_tangents[idx]
+        axis = np.cross(t_prev, t_curr)
+        axis_norm = np.linalg.norm(axis)
+        transported = normals[-1]
+        if axis_norm > 1e-12:
+            angle = float(np.arctan2(axis_norm, np.dot(t_prev, t_curr)))
+            transported = _rotate_vector(transported, axis / axis_norm, angle)
+        transported = transported - np.dot(transported, t_curr) * t_curr
+        normal = _unit_vector(transported, fallback=normals[-1])
+        normals.append(normal)
+        binormals.append(_unit_vector(np.cross(t_curr, normal)))
+
+    normals_arr = np.asarray(normals)
+    binormals_arr = np.asarray(binormals)
+    if closed and len(unit_tangents) > 2:
+        t0 = unit_tangents[0]
+        n0 = normals_arr[0]
+        n_end = normals_arr[-1] - np.dot(normals_arr[-1], t0) * t0
+        if np.linalg.norm(n_end) > 1e-12:
+            n_end = _unit_vector(n_end)
+            b0 = _unit_vector(np.cross(t0, n0))
+            holonomy = float(np.arctan2(np.dot(n_end, b0), np.dot(n_end, n0)))
+            fractions = np.linspace(0.0, 1.0, len(unit_tangents))
+            for idx, frac in enumerate(fractions):
+                correction = -holonomy * frac
+                normals_arr[idx] = _rotate_vector(
+                    normals_arr[idx], unit_tangents[idx], correction
+                )
+                normals_arr[idx] = _unit_vector(
+                    normals_arr[idx]
+                    - np.dot(normals_arr[idx], unit_tangents[idx]) * unit_tangents[idx]
+                )
+                binormals_arr[idx] = _unit_vector(
+                    np.cross(unit_tangents[idx], normals_arr[idx])
+                )
+    return normals_arr, binormals_arr
+
+
 def sweep_rectangular_cross_section(
     gamma: np.ndarray,
     gammadash: np.ndarray,
     width: float,
     height: float,
     n_cross: int = 4,
+    frame: str = "parallel",
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Sweep a rectangular cross-section along a curve to create a surface mesh.
@@ -96,6 +182,9 @@ def sweep_rectangular_cross_section(
         Cross-section height [m] along the second in-plane direction.
     n_cross : int
         Number of vertices per cross-section (4 for rectangle corners).
+    frame : {"parallel", "z-reference"}
+        Cross-section frame. ``parallel`` uses a Bishop frame with closed-loop
+        holonomy correction; ``z-reference`` preserves the legacy global-Z frame.
 
     Returns
     -------
@@ -134,7 +223,7 @@ def sweep_rectangular_cross_section(
         dtype=float,
     )
 
-    vertices_list = []
+    tangents = []
     for i in range(n_along):
         tangent = np.asarray(gammadash[i], dtype=float)
         tangent_len = np.linalg.norm(tangent)
@@ -143,9 +232,22 @@ def sweep_rectangular_cross_section(
                 gammadash[(i + 1) % n_along] if i < n_along - 1 else gammadash[i - 1]
             )
             tangent_len = np.linalg.norm(tangent)
-        tangent = tangent / tangent_len
+        tangents.append(tangent / tangent_len)
 
-        normal, binormal = _compute_cross_section_frame(tangent)
+    frame_key = frame.lower().replace("_", "-")
+    if frame_key in {"parallel", "bishop"}:
+        normals, binormals = _parallel_transport_frames(np.asarray(tangents), closed=True)
+    elif frame_key in {"z-reference", "z", "legacy"}:
+        frame_pairs = [_compute_cross_section_frame(tangent) for tangent in tangents]
+        normals = np.asarray([pair[0] for pair in frame_pairs])
+        binormals = np.asarray([pair[1] for pair in frame_pairs])
+    else:
+        raise ValueError(f"Unknown finite-build frame: {frame}")
+
+    vertices_list = []
+    for i in range(n_along):
+        normal = normals[i]
+        binormal = binormals[i]
         center = gamma[i]
 
         for u, v in local_corners:
@@ -184,6 +286,7 @@ def finite_build_coils_to_vtk(
     use_stellaris_default: bool = True,
     min_mesh_size: Optional[float] = None,
     max_mesh_size: Optional[float] = None,
+    frame: str = "parallel",
 ) -> Path:
     """
     Generate finite-build coil geometry and export to VTK.
@@ -331,7 +434,7 @@ def finite_build_coils_to_vtk(
             h = height if height is not None else w
 
         vertices, faces = sweep_rectangular_cross_section(
-            gamma, gammadash, width=w, height=h
+            gamma, gammadash, width=w, height=h, frame=frame
         )
         all_vertices.append(vertices)
         all_faces.append(faces + vertex_offset)
