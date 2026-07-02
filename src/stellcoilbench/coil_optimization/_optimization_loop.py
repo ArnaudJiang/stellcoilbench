@@ -20,6 +20,10 @@ from ..constants import (
 from ..utils import _timing_results, suppress_output, timed_section
 from ._adaptive_search import _coils_via_symmetries_compat, _make_base_currents
 from ._ci_utils import _is_ci_running, _nullcontext, _redirect_verbose_to_file
+from ._finite_section_field import (
+    build_finite_section_coil_bundle,
+    parse_finite_section_field_config,
+)
 from ._optimization_types import OptimizationLoopContext
 from ._plotting import (
     _compute_surface_vtk_data,
@@ -345,6 +349,11 @@ def _run_optimization_step(
             scipy_extra_kw["structural_obj"] = ctx.structural_obj
         if ctx.out_dir is not None:
             scipy_extra_kw["out_dir"] = ctx.out_dir
+        if ctx.history_interval is not None:
+            scipy_extra_kw["history_interval"] = ctx.history_interval
+            scipy_extra_kw["history_output_dir"] = (
+                ctx.history_output_dir or ctx.out_dir
+            )
         result, iterations_used = _run_scipy_minimize_for_modular_coils(
             ctx.c_list,
             ctx.constraint_scaling,
@@ -469,8 +478,15 @@ def _optimize_coils_loop_impl(
     # Step 3: Create BiotSavart and save initial state
     save_coils_surface_vtk = kwargs.get("save_coils_surface_vtk", True)
     save_initial_state = kwargs.get("save_initial_state", True)
+    finite_section_config = parse_finite_section_field_config(
+        kwargs.get("finite_section_field")
+    )
     with timed_section("biotsavart_setup"):
-        coils_for_bs = coils
+        coils_for_bs = (
+            build_finite_section_coil_bundle(coils, finite_section_config)
+            if finite_section_config.enabled
+            else coils
+        )
         bs, curves, B_initial = _setup_biotSavart_and_initial_save(
             coils_for_bs,
             s,
@@ -481,6 +497,13 @@ def _optimize_coils_loop_impl(
             save_coils_surface_vtk=save_coils_surface_vtk,
             save_initial_state=save_initial_state,
         )
+        if finite_section_config.enabled:
+            # Keep engineering constraints on the optimized centerline coils.
+            curves = [coil.curve for coil in coils]
+            proc0_print(
+                "[finite-section] BiotSavart uses "
+                f"{len(coils_for_bs)} bundle filaments from {len(coils)} centerline coils"
+            )
 
     if (
         coil_objective_terms
@@ -593,7 +616,12 @@ def _optimize_coils_loop_impl(
         kwargs=kwargs,
         structural_obj=structural_obj,
         effective_obj_terms=effective_obj_terms,
+        surface=s,
         out_dir=out_dir,
+        history_interval=kwargs.get("history_interval"),
+        history_output_dir=Path(kwargs["history_output_dir"]).resolve()
+        if kwargs.get("history_output_dir")
+        else None,
     )
 
     _print_optimization_setup_summary(ctx)
@@ -626,6 +654,24 @@ def _optimize_coils_loop_impl(
         except Exception:
             structural_max_von_mises_Pa = None
 
+    if finite_section_config.enabled:
+        from simsopt.field import BiotSavart
+        from simsopt.objectives import SquaredFlux
+
+        coils_for_bs = build_finite_section_coil_bundle(coils, finite_section_config)
+        bs = BiotSavart(coils_for_bs)
+        Jf = SquaredFlux(s, bs, threshold=flux_threshold)
+        kwargs["finite_section_field_runtime"] = {
+            "enabled": True,
+            "width": finite_section_config.width,
+            "height": finite_section_config.height,
+            "n_width": finite_section_config.n_width,
+            "n_height": finite_section_config.n_height,
+            "n_filaments_per_coil": finite_section_config.n_filaments,
+            "n_field_coils": len(coils_for_bs),
+            "current_distribution": finite_section_config.current_distribution,
+        }
+
     outcome = OptimizationOutcome(
         Jf=Jf,
         Jcsdist=Jcsdist,
@@ -648,7 +694,7 @@ def _optimize_coils_loop_impl(
         B_initial=B_initial,
         structural_max_von_mises_Pa=structural_max_von_mises_Pa,
     )
-    return _save_results_and_compute_metrics(
+    coils_return, results_dict = _save_results_and_compute_metrics(
         s,
         s_plot,
         qphi,
@@ -659,3 +705,6 @@ def _optimize_coils_loop_impl(
         kwargs,
         outcome,
     )
+    if "finite_section_field_runtime" in kwargs:
+        results_dict["finite_section_field"] = kwargs["finite_section_field_runtime"]
+    return coils_return, results_dict

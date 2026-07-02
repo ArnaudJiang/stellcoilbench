@@ -125,6 +125,19 @@ class TestCoilsParamsValidation:
             ),
             (
                 {
+                    "surface": "input.circular_tokamak",
+                    "coils_params": {
+                        "ncoils": 4,
+                        "order": 16,
+                        "initial_coils_path": "previous/coils.json",
+                    },
+                    "optimizer_params": {"algorithm": "l-bfgs"},
+                },
+                True,
+                None,
+            ),
+            (
+                {
                     "surface_params": {
                         "surface": "input.circular_tokamak",
                         "range": "half period",
@@ -152,6 +165,168 @@ class TestCoilsParamsValidation:
         else:
             with pytest.raises(ValueError, match=expected_match):
                 load_case(case_yaml)
+
+
+def test_dispatch_uses_initial_coils_path(tmp_path, monkeypatch):
+    """Warm-start cases should pass loaded coils into the standard optimizer loop."""
+    from stellcoilbench.coil_optimization import _optimization_dispatch as dispatch
+
+    coils_path = tmp_path / "coils.json"
+    coils_path.write_text("{}")
+    loaded_coils = [object(), object()]
+    captured = {}
+
+    def fake_load(path):
+        assert Path(path) == coils_path
+        return loaded_coils
+
+    def fake_optimize_coils_loop(*args, **kwargs):
+        captured.update(kwargs)
+        return loaded_coils, {"final_squared_flux": 1.0}
+
+    import simsopt
+
+    monkeypatch.setattr(simsopt, "load", fake_load)
+    monkeypatch.setattr(dispatch, "optimize_coils_loop", fake_optimize_coils_loop)
+
+    case_cfg = CaseConfig(
+        description="warm start",
+        surface_params={"surface": "input.circular_tokamak"},
+        coils_params={
+            "ncoils": 2,
+            "order": 4,
+            "initial_coils_path": str(coils_path),
+        },
+        optimizer_params={"algorithm": "L-BFGS-B", "max_iterations": 5},
+    )
+
+    coils, results = dispatch._dispatch_optimization_on_proc0(
+        surface=Mock(),
+        case_cfg=case_cfg,
+        coil_params=dict(case_cfg.coils_params),
+        optimizer_params=dict(case_cfg.optimizer_params),
+        coil_objective_terms={},
+        threshold_kwargs={},
+        output_dir=tmp_path,
+        surface_resolution=8,
+        case_yaml_path_abs=tmp_path / "case.yaml",
+        case_path=tmp_path / "case.yaml",
+        vc_target=None,
+        vc_target_plot=None,
+        skip_post_processing_in_loop=True,
+        pp_flags=PostProcessingConfig(),
+    )
+
+    assert coils is loaded_coils
+    assert results["final_squared_flux"] == 1.0
+    assert captured["initial_coils"] is loaded_coils
+
+
+def test_dispatch_routes_focus_backend(tmp_path, monkeypatch):
+    """FOCUS backend selection should bypass the standard simsopt loop."""
+    from stellcoilbench.coil_optimization import _optimization_dispatch as dispatch
+
+    focus_coils = [object()]
+    captured = {}
+
+    def fake_run_focus_backend(**kwargs):
+        captured.update(kwargs)
+        return focus_coils, {"optimization_backend": "focus"}
+
+    monkeypatch.setattr(dispatch, "run_focus_backend", fake_run_focus_backend)
+    monkeypatch.setattr(
+        dispatch,
+        "optimize_coils_loop",
+        lambda *args, **kwargs: pytest.fail("standard optimizer should not run"),
+    )
+
+    case_cfg = CaseConfig(
+        description="focus",
+        surface_params={"surface": "input.circular_tokamak"},
+        coils_params={"ncoils": 4, "order": 8},
+        optimizer_params={"backend": "focus", "max_iterations": 5},
+        focus_params={
+            "executable": "focus",
+            "output_harmonics_file": "nfp4_422.focus",
+        },
+    )
+
+    coils, results = dispatch._dispatch_optimization_on_proc0(
+        surface=Mock(),
+        case_cfg=case_cfg,
+        coil_params=dict(case_cfg.coils_params),
+        optimizer_params=dict(case_cfg.optimizer_params),
+        coil_objective_terms={},
+        threshold_kwargs={},
+        output_dir=tmp_path,
+        surface_resolution=8,
+        case_yaml_path_abs=tmp_path / "case.yaml",
+        case_path=tmp_path / "case.yaml",
+        vc_target=None,
+        vc_target_plot=None,
+        skip_post_processing_in_loop=True,
+        pp_flags=PostProcessingConfig(),
+    )
+
+    assert coils is focus_coils
+    assert results["optimization_backend"] == "focus"
+    assert captured["case_cfg"] is case_cfg
+    assert captured["output_dir"] == tmp_path
+
+
+class TestFocusBackendParsing:
+    """Tests for FOCUS output parsing and coefficient mapping."""
+
+    @property
+    def repo_root(self) -> Path:
+        return Path(__file__).resolve().parents[1]
+
+    def test_parse_focus_harmonic_sample(self):
+        from stellcoilbench.coil_optimization._focus_backend import (
+            parse_focus_harmonics,
+        )
+
+        sample = self.repo_root / "nfp4_422.focus"
+        if not sample.exists():
+            pytest.skip("FOCUS harmonic sample fixture is not available")
+
+        parsed = parse_focus_harmonics(sample)
+
+        assert parsed.ncoils == 4
+        assert parsed.order == 8
+        assert parsed.coils[0].name == "Mod_001"
+        assert parsed.coils[0].nseg == 128
+        assert parsed.coils[0].current == pytest.approx(1.024e6)
+        assert len(parsed.coils[0].xc) == 9
+
+    def test_focus_coefficients_match_curve_dof_order(self):
+        from stellcoilbench.coil_optimization._focus_backend import (
+            _focus_component_dofs,
+        )
+
+        dofs = _focus_component_dofs([10.0, 11.0, 12.0], [0.0, 21.0, 22.0])
+
+        assert dofs.tolist() == [10.0, 21.0, 11.0, 22.0, 12.0]
+
+    def test_parse_focus_filament_sample(self):
+        from stellcoilbench.coil_optimization._focus_backend import (
+            parse_focus_filaments,
+        )
+
+        sample = self.repo_root / "nfp4_422.coils"
+        if not sample.exists():
+            pytest.skip("FOCUS filament sample fixture is not available")
+
+        parsed = parse_focus_filaments(sample)
+
+        assert parsed.nfp == 4
+        assert [coil.name for coil in parsed.coils] == [
+            "Mod_001",
+            "Mod_002",
+            "Mod_003",
+            "Mod_004",
+        ]
+        assert parsed.coils[0].points.shape[1] == 3
 
 
 class TestCoilTypeDipoleRejected:

@@ -182,7 +182,16 @@ def _save_optimized_coils_and_compute_metrics(
             coils_to_vtk(
                 coils, out_dir / "coils_optimized", close=True, extra_data=sg_extra
             )
-    bs.save(out_dir / "biot_savart_optimized.json")
+    with proc0_try(
+        "Failed to save optimized BiotSavart JSON: {e}",
+        OSError,
+        RuntimeError,
+        ValueError,
+        TypeError,
+        NotImplementedError,
+        on_catch=lambda: proc0_print("  Continuing without BiotSavart JSON export..."),
+    ):
+        bs.save(out_dir / "biot_savart_optimized.json")
 
     if save_coils_surface_vtk:
         pointData = _compute_surface_vtk_data(bs, s_plot, qphi, qtheta, include_bn=True)
@@ -259,6 +268,15 @@ def _initialize_coils_for_optimization(
                     coil.curve.x = x + noise
         else:
             coils = initial_coils
+            dof_perturbation = kwargs.get("dof_perturbation", 0.0)
+            if isinstance(dof_perturbation, (int, float)) and dof_perturbation > 0:
+                proc0_print(
+                    f"  Applying warm-start DOF perturbation with scale {dof_perturbation}"
+                )
+                for coil in coils[:ncoils]:
+                    x = coil.curve.x
+                    noise = np.random.randn(len(x)) * dof_perturbation * np.std(x)
+                    coil.curve.x = x + noise
 
     return coils, fix_shapes
 

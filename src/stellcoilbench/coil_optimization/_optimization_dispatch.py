@@ -17,12 +17,60 @@ if TYPE_CHECKING:
     from simsopt.geo import SurfaceRZFourier
 
 from ..config_scheme import CaseConfig, PostProcessingConfig
+from ..mpi_utils import proc0_print
 from ._scipy_optimizer import _filter_optimizer_kwargs
+from ._focus_backend import run_focus_backend
 from ._fourier_continuation import optimize_coils_with_fourier_continuation
 from ._optimization_loop import optimize_coils_loop
 from ._optimization_loop import _get_regularization_circ
 
 regularization_circ = _get_regularization_circ()
+
+
+def _resolve_initial_coils_path(
+    initial_coils_path: str | Path,
+    case_yaml_path_abs: Path | None,
+    case_path: Path,
+) -> Path:
+    """Resolve a warm-start coils path from a case config."""
+    path = Path(initial_coils_path).expanduser()
+    if path.is_absolute():
+        return path
+
+    candidates: list[Path] = []
+    if case_yaml_path_abs is not None:
+        candidates.append(case_yaml_path_abs.parent / path)
+    candidates.append(case_path.parent / path if case_path.is_file() else case_path / path)
+    candidates.append(Path.cwd() / path)
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate.resolve()
+    return candidates[0].resolve()
+
+
+def _load_initial_coils(
+    coil_params: dict[str, Any],
+    case_yaml_path_abs: Path | None,
+    case_path: Path,
+) -> list | None:
+    """Load initial coils for local refinement when configured."""
+    initial_coils_path = coil_params.pop("initial_coils_path", None)
+    if not initial_coils_path:
+        return None
+
+    from simsopt import load
+
+    resolved = _resolve_initial_coils_path(initial_coils_path, case_yaml_path_abs, case_path)
+    if not resolved.exists():
+        raise FileNotFoundError(f"initial_coils_path not found: {resolved}")
+    proc0_print(f"Using warm-start coils from {resolved}")
+    loaded = load(str(resolved))
+    if not isinstance(loaded, list):
+        raise TypeError(
+            f"initial_coils_path must load to a list of coils, got {type(loaded).__name__}"
+        )
+    return loaded
 
 
 def _dispatch_optimization_on_proc0(
@@ -78,6 +126,7 @@ def _dispatch_optimization_on_proc0(
     tuple[list | None, dict]
         (coils, results_dict). Coils may be None if optimization failed.
     """
+    backend = str(optimizer_params.pop("backend", "simsopt")).lower()
     algorithm_options = optimizer_params.pop("algorithm_options", {})
     effective_case_path = (
         case_yaml_path_abs
@@ -86,12 +135,26 @@ def _dispatch_optimization_on_proc0(
     )
 
     opt_kwargs = dict(threshold_kwargs)
+    initial_coils = _load_initial_coils(coil_params, case_yaml_path_abs, case_path)
+    if case_cfg.finite_section_field is not None:
+        opt_kwargs["finite_section_field"] = case_cfg.finite_section_field
     if pp_flags.finite_build_width is not None:
         opt_kwargs["finite_build_width"] = pp_flags.finite_build_width
 
     fourier_continuation = case_cfg.fourier_continuation
 
-    if fourier_continuation and fourier_continuation.get("enabled", False):
+    if backend == "focus":
+        coils, results_dict = run_focus_backend(
+            surface=surface,
+            case_cfg=case_cfg,
+            coil_params=coil_params,
+            optimizer_params=optimizer_params,
+            output_dir=output_dir,
+            surface_resolution=surface_resolution,
+            case_yaml_path_abs=case_yaml_path_abs,
+            case_path=case_path,
+        )
+    elif fourier_continuation and fourier_continuation.get("enabled", False):
         fourier_orders = fourier_continuation.get(
             "orders", [coil_params.get("order", 16)]
         )
@@ -112,6 +175,7 @@ def _dispatch_optimization_on_proc0(
             if regularization_circ is not None
             else lambda x: None,
             coil_objective_terms=coil_objective_terms,
+            initial_coils=initial_coils,
             surface_resolution=surface_resolution,
             algorithm_options=algorithm_options,
             case_path=effective_case_path,
@@ -129,6 +193,7 @@ def _dispatch_optimization_on_proc0(
             **optimizer_params,
             out_dir=str(output_dir),
             coil_objective_terms=coil_objective_terms,
+            initial_coils=initial_coils,
             surface_resolution=surface_resolution,
             algorithm_options=algorithm_options,
             case_path=effective_case_path,

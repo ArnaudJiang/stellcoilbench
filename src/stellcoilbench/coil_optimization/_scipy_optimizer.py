@@ -9,7 +9,9 @@ both scipy algorithms (L-BFGS-B, BFGS, SLSQP, etc.) and augmented Lagrangian.
 from __future__ import annotations
 
 import sys
+import csv
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple
+from pathlib import Path
 
 import numpy as np
 
@@ -32,10 +34,173 @@ from ..constants import (
     VERBOSE_ITERATION_INTERVAL,
 )
 from ..mpi_utils import proc0_print
+from ._link_guard import PairwiseLinkGuard
 from ._thresholds import get_full_thresholds
 
 if TYPE_CHECKING:
     from simsopt.geo import SurfaceRZFourier
+
+
+class OptimizationHistoryRecorder:
+    """Write lightweight optimizer diagnostics to CSV at a fixed objective-call interval."""
+
+    def __init__(
+        self,
+        output_dir: str | Path,
+        interval: int,
+        *,
+        constraint_names_and_thresholds: list | None = None,
+        weights: list | None = None,
+        base_curves: list | None = None,
+    ) -> None:
+        self.output_dir = Path(output_dir)
+        self.interval = max(1, int(interval))
+        self.constraint_names_and_thresholds = constraint_names_and_thresholds or []
+        self.weights = weights or []
+        self.base_curves = base_curves or []
+        self.objective_path = self.output_dir / "objective_history.csv"
+        self.constraint_path = self.output_dir / "constraint_history.csv"
+        self._initialized = False
+
+    def reset(self) -> None:
+        """Clear existing history files and rewrite headers on the next record."""
+        for path in (self.objective_path, self.constraint_path):
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
+        self._initialized = False
+
+    def should_record(self, iteration: int) -> bool:
+        return iteration == 1 or iteration % self.interval == 0
+
+    def _ensure_initialized(self) -> None:
+        if self._initialized:
+            return
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        with self.objective_path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "iteration",
+                    "objective",
+                    "max_length",
+                    "avg_length",
+                    "min_length",
+                    "total_length",
+                    "max_curvature",
+                    "mean_squared_curvature",
+                ],
+            )
+            writer.writeheader()
+        with self.constraint_path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "iteration",
+                    "constraint_index",
+                    "constraint_name",
+                    "threshold",
+                    "value",
+                    "weight",
+                    "weighted_value",
+                ],
+            )
+            writer.writeheader()
+        self._initialized = True
+
+    def record(self, iteration: int, objective: float, c_list: list) -> None:
+        self._ensure_initialized()
+        geometry = self._geometry_metrics()
+        with self.objective_path.open("a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "iteration",
+                    "objective",
+                    "max_length",
+                    "avg_length",
+                    "min_length",
+                    "total_length",
+                    "max_curvature",
+                    "mean_squared_curvature",
+                ],
+            )
+            writer.writerow({"iteration": iteration, "objective": objective, **geometry})
+
+        name_threshold = {
+            i: pair for i, pair in enumerate(self.constraint_names_and_thresholds)
+        }
+        with self.constraint_path.open("a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "iteration",
+                    "constraint_index",
+                    "constraint_name",
+                    "threshold",
+                    "value",
+                    "weight",
+                    "weighted_value",
+                ],
+            )
+            for idx, constraint in enumerate(c_list):
+                name, threshold = name_threshold.get(idx, (f"constraint_{idx}", ""))
+                value = self._safe_objective_value(constraint)
+                weight = self.weights[idx] if idx < len(self.weights) else 1.0
+                writer.writerow(
+                    {
+                        "iteration": iteration,
+                        "constraint_index": idx,
+                        "constraint_name": name,
+                        "threshold": threshold,
+                        "value": value,
+                        "weight": weight,
+                        "weighted_value": value * float(weight)
+                        if value is not None
+                        else "",
+                    }
+                )
+
+    def _geometry_metrics(self) -> dict[str, float | str]:
+        if not self.base_curves:
+            return {
+                "max_length": "",
+                "avg_length": "",
+                "min_length": "",
+                "total_length": "",
+                "max_curvature": "",
+                "mean_squared_curvature": "",
+            }
+        try:
+            from simsopt.geo import CurveLength
+
+            lengths = [float(CurveLength(c).J()) for c in self.base_curves]
+            kappas = [np.atleast_1d(c.kappa()).astype(float) for c in self.base_curves]
+            return {
+                "max_length": max(lengths),
+                "avg_length": float(np.mean(lengths)),
+                "min_length": min(lengths),
+                "total_length": float(np.sum(lengths)),
+                "max_curvature": float(max(np.max(k) for k in kappas)),
+                "mean_squared_curvature": float(max(np.mean(k**2) for k in kappas)),
+            }
+        except Exception:
+            return {
+                "max_length": "",
+                "avg_length": "",
+                "min_length": "",
+                "total_length": "",
+                "max_curvature": "",
+                "mean_squared_curvature": "",
+            }
+
+    @staticmethod
+    def _safe_objective_value(obj: Any) -> float | None:
+        try:
+            return float(obj.J())
+        except Exception:
+            return None
 
 
 def _parse_optimizer_config(
@@ -606,6 +771,8 @@ def _build_objective_and_gradient(
     Jts: list | None = None,
     structural_obj: Any | None = None,
     out_dir: Any = None,
+    history_recorder: OptimizationHistoryRecorder | None = None,
+    link_guard: PairwiseLinkGuard | None = None,
 ) -> Tuple[
     Callable[[np.ndarray], float],
     Callable[[np.ndarray], np.ndarray],
@@ -657,6 +824,12 @@ def _build_objective_and_gradient(
         JF.x = x  # type: ignore[attr-defined]
         J = JF.J()  # type: ignore[attr-defined]
         iteration_count[0] += 1
+        if link_guard is not None:
+            J += link_guard.evaluate(iteration_count[0], x=x, objective=float(J))
+        if history_recorder is not None and history_recorder.should_record(
+            iteration_count[0]
+        ):
+            history_recorder.record(iteration_count[0], float(J), c_list)
         _should_log = (
             iteration_count[0] == 1
             or (
@@ -759,6 +932,7 @@ def _invoke_scipy_minimize(
     algorithm: str,
     max_iterations: int,
     algorithm_options: Dict[str, Any],
+    link_guard: PairwiseLinkGuard | None = None,
 ) -> Tuple[Any, int]:
     """
     Call scipy.optimize.minimize and handle result.
@@ -797,6 +971,24 @@ def _invoke_scipy_minimize(
         jac=gradient,
         options=options,
     )
+    if link_guard is not None:
+        status = link_guard.current_status()
+        restored = False
+        if status["has_topology_change"]:
+            restored = link_guard.restore_last_safe(JF)
+            if restored:
+                result.x = JF.x.copy()  # type: ignore[attr-defined]
+            result.success = False
+            action = (
+                "restored last no-link checkpoint"
+                if restored
+                else "no no-link checkpoint available"
+            )
+            result.message = (
+                f"{getattr(result, 'message', '')}; {action} after topology "
+                "guard violation"
+            )
+        link_guard.write_final_audit(restored=restored)
     iterations_used = getattr(result, "nit", 0)
     return result, iterations_used
 
@@ -824,6 +1016,8 @@ def _run_scipy_minimize_for_modular_coils(
     kwargs: Dict[str, Any],
     structural_obj: Any | None = None,
     out_dir: Any = None,
+    history_interval: int | None = None,
+    history_output_dir: Any = None,
 ) -> tuple:
     """
     Run scipy minimize (BFGS, L-BFGS-B, SLSQP, etc.) for modular coil optimization.
@@ -909,6 +1103,15 @@ def _run_scipy_minimize_for_modular_coils(
     show_torque = (
         coil_objective_terms is not None and "coil_coil_torque" in coil_objective_terms
     )
+    history_recorder = None
+    if history_interval is not None and int(history_interval) > 0:
+        history_recorder = OptimizationHistoryRecorder(
+            history_output_dir or out_dir or ".",
+            int(history_interval),
+            constraint_names_and_thresholds=constraint_names_and_thresholds,
+            weights=weights,
+            base_curves=base_curves,
+        )
     objective, gradient, JF, x0 = _build_objective_and_gradient(
         c_list,
         weights,
@@ -928,6 +1131,38 @@ def _run_scipy_minimize_for_modular_coils(
         out_dir=out_dir,
     )
     _invoke_taylor_test_for_modular_coils(objective, gradient, x0, JF, verbose)
+    if history_recorder is not None:
+        history_recorder.reset()
+    link_guard = None
+    if coil_objective_terms and bool(coil_objective_terms.get("link_guard", False)):
+        link_guard = PairwiseLinkGuard(
+            base_curves,
+            output_dir=out_dir,
+            interval=int(coil_objective_terms.get("link_guard_interval", 1)),
+            penalty=float(coil_objective_terms.get("link_guard_penalty", 1e12)),
+            tolerance=float(coil_objective_terms.get("link_guard_tolerance", 0.5)),
+            rollback=bool(coil_objective_terms.get("link_guard_rollback", True)),
+        )
+    objective, gradient, JF, _x0 = _build_objective_and_gradient(
+        c_list,
+        weights,
+        constraint_names_and_thresholds,
+        base_curves,
+        Jls,
+        Jccdist,
+        Jcsdist,
+        Jlink,
+        verbose,
+        coils=coils,
+        ncoils=ncoils,
+        show_force=show_force,
+        show_torque=show_torque,
+        Jts=Jts,
+        structural_obj=structural_obj,
+        out_dir=out_dir,
+        history_recorder=history_recorder,
+        link_guard=link_guard,
+    )
     return _invoke_scipy_minimize(
         objective,
         gradient,
@@ -935,4 +1170,5 @@ def _run_scipy_minimize_for_modular_coils(
         algorithm,
         max_iterations,
         algorithm_options,
+        link_guard=link_guard,
     )

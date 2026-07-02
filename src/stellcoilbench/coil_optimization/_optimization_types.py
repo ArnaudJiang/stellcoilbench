@@ -55,4 +55,7 @@ class OptimizationLoopContext:
     kwargs: Dict[str, Any]
     structural_obj: Any | None
     effective_obj_terms: Dict[str, Any] | None
+    surface: Any | None = None
     out_dir: Path | None = None
+    history_interval: int | None = None
+    history_output_dir: Path | None = None

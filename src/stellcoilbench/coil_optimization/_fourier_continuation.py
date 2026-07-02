@@ -230,7 +230,7 @@ def optimize_coils_with_fourier_continuation(
     out_dir_path.mkdir(parents=True, exist_ok=True)
 
     all_results = []
-    coils: list | None = None
+    coils: list | None = kwargs.pop("initial_coils", None)
     coil_width = kwargs.get("coil_width", 0.4)
     cached_thresholds: Dict[str, Any] = {}
 
@@ -255,7 +255,10 @@ def optimize_coils_with_fourier_continuation(
             fc_kwargs["save_initial_state"] = False
 
         if i == 0:
-            proc0_print(f"Initializing coils with order={order}...")
+            if coils is None:
+                proc0_print(f"Initializing coils with order={order}...")
+            else:
+                proc0_print(f"Using warm-start coils for order={order}...")
             coils, results = optimize_coils_loop(
                 s=s,
                 target_B=target_B,
@@ -266,6 +269,7 @@ def optimize_coils_with_fourier_continuation(
                 verbose=verbose,
                 regularization=regularization,
                 coil_objective_terms=coil_objective_terms,
+                initial_coils=coils,
                 surface_resolution=surface_resolution,
                 skip_post_processing=True,
                 **fc_kwargs,
