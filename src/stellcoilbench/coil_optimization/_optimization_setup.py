@@ -217,12 +217,24 @@ def _save_optimized_coils_and_compute_metrics(
     return metrics
 
 
+def _rng_from_kwargs(kwargs: Dict[str, Any]) -> np.random.Generator:
+    """Create a local RNG for coil perturbations from ``random_seed`` if set."""
+    seed = kwargs.get("random_seed")
+    if seed is None:
+        return np.random.default_rng()
+    try:
+        return np.random.default_rng(int(seed))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"random_seed must be an integer, got {seed!r}") from exc
+
+
 def _initialize_coils_for_optimization(
     s: "SurfaceRZFourier",
     target_B: float,
     out_dir: Path,
     ncoils: int,
     order: int,
+    numquadpoints: int,
     coil_width: float,
     regularization: Callable | None,
     initial_coils: list | None,
@@ -242,6 +254,7 @@ def _initialize_coils_for_optimization(
         ``(coils, fix_shapes)`` — coil list and fix_shapes flag (always False).
     """
     fix_shapes: bool = False
+    rng = _rng_from_kwargs(kwargs)
 
     with timed_section("coil_initialization"):
         if initial_coils is None:
@@ -254,6 +267,7 @@ def _initialize_coils_for_optimization(
                     target_B=target_B,
                     ncoils=ncoils,
                     order=order,
+                    numquadpoints=numquadpoints,
                     coil_width=coil_width,
                     regularization=regularization,
                 )
@@ -264,7 +278,9 @@ def _initialize_coils_for_optimization(
                 )
                 for coil in coils[:ncoils]:
                     x = coil.curve.x
-                    noise = np.random.randn(len(x)) * dof_perturbation * np.std(x)
+                    noise = (
+                        rng.standard_normal(len(x)) * dof_perturbation * np.std(x)
+                    )
                     coil.curve.x = x + noise
         else:
             coils = initial_coils
@@ -275,7 +291,9 @@ def _initialize_coils_for_optimization(
                 )
                 for coil in coils[:ncoils]:
                     x = coil.curve.x
-                    noise = np.random.randn(len(x)) * dof_perturbation * np.std(x)
+                    noise = (
+                        rng.standard_normal(len(x)) * dof_perturbation * np.std(x)
+                    )
                     coil.curve.x = x + noise
 
     return coils, fix_shapes

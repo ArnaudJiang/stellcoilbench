@@ -37,14 +37,23 @@ DEFAULT_COIL_OBJECTIVE_TERMS = {
 
 _THRESHOLD_KEYS = (
     "length_threshold",
+    "length_threshold_device",
     "cc_threshold",
     "cs_threshold",
+    "cc_threshold_device",
+    "cs_threshold_device",
     "curvature_threshold",
+    "curvature_threshold_device",
     "torsion_threshold",
+    "torsion_threshold_device",
     "arclength_variation_threshold",
+    "arclength_variation_threshold_device",
     "msc_threshold",
+    "msc_threshold_device",
     "force_threshold",
+    "force_threshold_device",
     "torque_threshold",
+    "torque_threshold_device",
     "flux_threshold",
     "finite_build_width",
 )
@@ -174,7 +183,9 @@ def _extract_threshold_kwargs(
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """Separate threshold/weight kwargs from objective term options.
 
-    Also reads ``dof_perturbation`` from the raw YAML if present.
+    Also reads ``dof_perturbation`` and ``random_seed`` from the raw YAML if
+    present. These are not objective terms, but they must travel with the
+    threshold kwargs because the coil initialization path consumes them.
 
     Parameters
     ----------
@@ -205,6 +216,8 @@ def _extract_threshold_kwargs(
         raw_config = load_yaml(path=case_yaml_path_abs)
         if isinstance(raw_config, dict) and "dof_perturbation" in raw_config:
             threshold_kwargs["dof_perturbation"] = raw_config["dof_perturbation"]
+        if isinstance(raw_config, dict) and "random_seed" in raw_config:
+            threshold_kwargs["random_seed"] = raw_config["random_seed"]
 
     return threshold_kwargs, filtered_terms
 

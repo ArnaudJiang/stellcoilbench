@@ -136,6 +136,7 @@ def initialize_coils_loop(
     target_B: float = 5.7,
     ncoils: int = 4,
     order: int = 16,
+    numquadpoints: int = DEFAULT_COIL_QUADPOINTS,
     coil_width: float = 0.4,
     regularization: Callable[..., Any] | None = regularization_circ,
 ) -> List[Any]:
@@ -163,6 +164,8 @@ def initialize_coils_loop(
         Number of base coils.
     order : int, default=16
         Fourier order for coil curves.
+    numquadpoints : int, default=DEFAULT_COIL_QUADPOINTS
+        Quadrature points along each base coil curve.
     coil_width : float, default=0.4
         Coil width [m] for regularization.
     regularization : callable, optional
@@ -196,6 +199,7 @@ def initialize_coils_loop(
         order,
         total_current,
         regularizations,
+        numquadpoints=numquadpoints,
     )
 
     # Final coil creation with determined R0 and R1
@@ -206,7 +210,7 @@ def initialize_coils_loop(
         R0=R0,
         R1=R1,
         order=order,
-        numquadpoints=DEFAULT_COIL_QUADPOINTS,
+        numquadpoints=numquadpoints,
     )
     base_currents = _make_base_currents(total_current, ncoils)
     coils = _coils_via_symmetries_compat(
@@ -434,6 +438,7 @@ def _optimize_coils_loop_impl(
     torque_threshold = th["torque_threshold"]
     coil_width = th.get("coil_width", 0.4 / th["a0"])
     major_radius = th["major_radius"]
+    numquadpoints = int(kwargs.get("numquadpoints", DEFAULT_COIL_QUADPOINTS))
 
     # Step 1: Initialize coils
     coils, _fix_shapes = _initialize_coils_for_optimization(
@@ -442,6 +447,7 @@ def _optimize_coils_loop_impl(
         out_dir,
         ncoils,
         order,
+        numquadpoints,
         coil_width,
         regularization,
         initial_coils,
@@ -460,6 +466,7 @@ def _optimize_coils_loop_impl(
                 out_dir=out_dir,
                 ncoils=ncoils,
                 order=order,
+                numquadpoints=numquadpoints,
                 coil_width=coil_width,
                 regularization=regularization,
             )

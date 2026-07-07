@@ -34,6 +34,8 @@ from ..constants import (
     VERBOSE_ITERATION_INTERVAL,
 )
 from ..mpi_utils import proc0_print
+from ._cs_guard import CoilSurfaceDistanceGuard
+from ._early_stop import EarlyStopController, EarlyStopTriggered
 from ._link_guard import PairwiseLinkGuard
 from ._thresholds import get_full_thresholds
 
@@ -52,12 +54,16 @@ class OptimizationHistoryRecorder:
         constraint_names_and_thresholds: list | None = None,
         weights: list | None = None,
         base_curves: list | None = None,
+        Jccdist: Any | None = None,
+        Jcsdist: Any | None = None,
     ) -> None:
         self.output_dir = Path(output_dir)
         self.interval = max(1, int(interval))
         self.constraint_names_and_thresholds = constraint_names_and_thresholds or []
         self.weights = weights or []
         self.base_curves = base_curves or []
+        self.Jccdist = Jccdist
+        self.Jcsdist = Jcsdist
         self.objective_path = self.output_dir / "objective_history.csv"
         self.constraint_path = self.output_dir / "constraint_history.csv"
         self._initialized = False
@@ -90,6 +96,8 @@ class OptimizationHistoryRecorder:
                     "total_length",
                     "max_curvature",
                     "mean_squared_curvature",
+                    "cc_shortest_distance",
+                    "cs_shortest_distance",
                 ],
             )
             writer.writeheader()
@@ -124,6 +132,8 @@ class OptimizationHistoryRecorder:
                     "total_length",
                     "max_curvature",
                     "mean_squared_curvature",
+                    "cc_shortest_distance",
+                    "cs_shortest_distance",
                 ],
             )
             writer.writerow({"iteration": iteration, "objective": objective, **geometry})
@@ -163,6 +173,8 @@ class OptimizationHistoryRecorder:
                 )
 
     def _geometry_metrics(self) -> dict[str, float | str]:
+        cc_shortest = self._safe_shortest_distance(self.Jccdist)
+        cs_shortest = self._safe_shortest_distance(self.Jcsdist)
         if not self.base_curves:
             return {
                 "max_length": "",
@@ -171,6 +183,8 @@ class OptimizationHistoryRecorder:
                 "total_length": "",
                 "max_curvature": "",
                 "mean_squared_curvature": "",
+                "cc_shortest_distance": cc_shortest if cc_shortest is not None else "",
+                "cs_shortest_distance": cs_shortest if cs_shortest is not None else "",
             }
         try:
             from simsopt.geo import CurveLength
@@ -184,6 +198,8 @@ class OptimizationHistoryRecorder:
                 "total_length": float(np.sum(lengths)),
                 "max_curvature": float(max(np.max(k) for k in kappas)),
                 "mean_squared_curvature": float(max(np.mean(k**2) for k in kappas)),
+                "cc_shortest_distance": cc_shortest if cc_shortest is not None else "",
+                "cs_shortest_distance": cs_shortest if cs_shortest is not None else "",
             }
         except Exception:
             return {
@@ -193,12 +209,21 @@ class OptimizationHistoryRecorder:
                 "total_length": "",
                 "max_curvature": "",
                 "mean_squared_curvature": "",
+                "cc_shortest_distance": cc_shortest if cc_shortest is not None else "",
+                "cs_shortest_distance": cs_shortest if cs_shortest is not None else "",
             }
 
     @staticmethod
     def _safe_objective_value(obj: Any) -> float | None:
         try:
             return float(obj.J())
+        except Exception:
+            return None
+
+    @staticmethod
+    def _safe_shortest_distance(obj: Any) -> float | None:
+        try:
+            return float(obj.shortest_distance())
         except Exception:
             return None
 
@@ -773,6 +798,8 @@ def _build_objective_and_gradient(
     out_dir: Any = None,
     history_recorder: OptimizationHistoryRecorder | None = None,
     link_guard: PairwiseLinkGuard | None = None,
+    cs_guard: CoilSurfaceDistanceGuard | None = None,
+    early_stop: EarlyStopController | None = None,
 ) -> Tuple[
     Callable[[np.ndarray], float],
     Callable[[np.ndarray], np.ndarray],
@@ -826,10 +853,14 @@ def _build_objective_and_gradient(
         iteration_count[0] += 1
         if link_guard is not None:
             J += link_guard.evaluate(iteration_count[0], x=x, objective=float(J))
+        if cs_guard is not None:
+            J += cs_guard.evaluate(iteration_count[0], x=x, objective=float(J))
         if history_recorder is not None and history_recorder.should_record(
             iteration_count[0]
         ):
             history_recorder.record(iteration_count[0], float(J), c_list)
+        if early_stop is not None:
+            early_stop.maybe_check(iteration_count[0], float(J))
         _should_log = (
             iteration_count[0] == 1
             or (
@@ -933,6 +964,8 @@ def _invoke_scipy_minimize(
     max_iterations: int,
     algorithm_options: Dict[str, Any],
     link_guard: PairwiseLinkGuard | None = None,
+    cs_guard: CoilSurfaceDistanceGuard | None = None,
+    early_stop: EarlyStopController | None = None,
 ) -> Tuple[Any, int]:
     """
     Call scipy.optimize.minimize and handle result.
@@ -964,13 +997,26 @@ def _invoke_scipy_minimize(
     options = _build_scipy_minimize_options(
         algorithm, max_iterations, algorithm_options
     )
-    result = minimize(
-        fun=objective,
-        x0=JF.x,  # type: ignore[attr-defined]
-        method=algorithm,
-        jac=gradient,
-        options=options,
-    )
+    try:
+        result = minimize(
+            fun=objective,
+            x0=JF.x,  # type: ignore[attr-defined]
+            method=algorithm,
+            jac=gradient,
+            options=options,
+        )
+    except EarlyStopTriggered as exc:
+        from scipy.optimize import OptimizeResult
+
+        result = OptimizeResult(
+            x=JF.x.copy(),  # type: ignore[attr-defined]
+            success=False,
+            status=1,
+            message=f"early stop: {exc.status.get('reason', '')}",
+            nit=int(exc.status.get("iteration") or 0),
+            nfev=int(exc.status.get("iteration") or 0),
+            njev=int(exc.status.get("iteration") or 0),
+        )
     if link_guard is not None:
         status = link_guard.current_status()
         restored = False
@@ -989,6 +1035,26 @@ def _invoke_scipy_minimize(
                 "guard violation"
             )
         link_guard.write_final_audit(restored=restored)
+    if cs_guard is not None:
+        status = cs_guard.current_status()
+        restored = False
+        if status["has_clearance_violation"]:
+            restored = cs_guard.restore_last_safe(JF)
+            if restored:
+                result.x = JF.x.copy()  # type: ignore[attr-defined]
+            result.success = False
+            action = (
+                "restored last safe-clearance checkpoint"
+                if restored
+                else "no safe-clearance checkpoint available"
+            )
+            result.message = (
+                f"{getattr(result, 'message', '')}; {action} after coil-surface "
+                "clearance guard violation"
+            )
+        cs_guard.write_final_audit(restored=restored)
+    if early_stop is not None:
+        early_stop.write_final()
     iterations_used = getattr(result, "nit", 0)
     return result, iterations_used
 
@@ -1111,6 +1177,8 @@ def _run_scipy_minimize_for_modular_coils(
             constraint_names_and_thresholds=constraint_names_and_thresholds,
             weights=weights,
             base_curves=base_curves,
+            Jccdist=Jccdist,
+            Jcsdist=Jcsdist,
         )
     objective, gradient, JF, x0 = _build_objective_and_gradient(
         c_list,
@@ -1142,6 +1210,45 @@ def _run_scipy_minimize_for_modular_coils(
             penalty=float(coil_objective_terms.get("link_guard_penalty", 1e12)),
             tolerance=float(coil_objective_terms.get("link_guard_tolerance", 0.5)),
             rollback=bool(coil_objective_terms.get("link_guard_rollback", True)),
+            sample_stride=int(coil_objective_terms.get("link_guard_sample_stride", 1)),
+            record_interval=(
+                int(coil_objective_terms["link_guard_record_interval"])
+                if coil_objective_terms.get("link_guard_record_interval") is not None
+                else None
+            ),
+        )
+    cs_guard = None
+    if coil_objective_terms and bool(coil_objective_terms.get("cs_guard", False)):
+        hard_min = coil_objective_terms.get("cs_guard_hard_min")
+        if hard_min is None:
+            hard_min = coil_objective_terms.get("cs_hard_min")
+        if hard_min is None:
+            hard_min = coil_objective_terms.get("cs_threshold_device")
+        if hard_min is None:
+            hard_min = coil_objective_terms.get("cs_threshold")
+        if hard_min is None:
+            hard_min = cs_thresh
+        soft_min = coil_objective_terms.get("cs_guard_soft_min")
+        if soft_min is None:
+            soft_min = coil_objective_terms.get("cs_soft_min")
+        cs_guard = CoilSurfaceDistanceGuard(
+            Jcsdist,
+            output_dir=out_dir,
+            interval=int(coil_objective_terms.get("cs_guard_interval", 5)),
+            hard_min=float(hard_min or 0.0),
+            soft_min=float(soft_min) if soft_min is not None else None,
+            penalty=float(coil_objective_terms.get("cs_guard_penalty", 1e8)),
+            rollback=bool(coil_objective_terms.get("cs_guard_rollback", True)),
+        )
+    early_stop = None
+    if coil_objective_terms and isinstance(coil_objective_terms.get("early_stop"), dict):
+        early_stop = EarlyStopController(
+            coil_objective_terms["early_stop"],
+            base_curves=base_curves,
+            Jccdist=Jccdist,
+            Jcsdist=Jcsdist,
+            output_dir=out_dir,
+            link_guard=link_guard,
         )
     objective, gradient, JF, _x0 = _build_objective_and_gradient(
         c_list,
@@ -1162,6 +1269,8 @@ def _run_scipy_minimize_for_modular_coils(
         out_dir=out_dir,
         history_recorder=history_recorder,
         link_guard=link_guard,
+        cs_guard=cs_guard,
+        early_stop=early_stop,
     )
     return _invoke_scipy_minimize(
         objective,
@@ -1171,4 +1280,6 @@ def _run_scipy_minimize_for_modular_coils(
         max_iterations,
         algorithm_options,
         link_guard=link_guard,
+        cs_guard=cs_guard,
+        early_stop=early_stop,
     )

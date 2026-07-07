@@ -10,8 +10,11 @@ from typing import Any
 import numpy as np
 
 
-def _closed_points(curve: Any) -> np.ndarray:
+def _closed_points(curve: Any, *, sample_stride: int = 1) -> np.ndarray:
     pts = np.asarray(curve.gamma(), dtype=float).reshape(-1, 3)
+    stride = max(1, int(sample_stride))
+    if stride > 1 and len(pts) > 0:
+        pts = pts[::stride]
     if len(pts) == 0:
         return pts
     if np.linalg.norm(pts[0] - pts[-1]) > 1e-10:
@@ -19,9 +22,14 @@ def _closed_points(curve: Any) -> np.ndarray:
     return pts
 
 
-def _pairwise_gauss_link(curve_a: Any, curve_b: Any) -> float:
-    p = _closed_points(curve_a)
-    q = _closed_points(curve_b)
+def _pairwise_gauss_link(
+    curve_a: Any,
+    curve_b: Any,
+    *,
+    sample_stride: int = 1,
+) -> float:
+    p = _closed_points(curve_a, sample_stride=sample_stride)
+    q = _closed_points(curve_b, sample_stride=sample_stride)
     if len(p) < 2 or len(q) < 2:
         return 0.0
 
@@ -60,12 +68,18 @@ class PairwiseLinkGuard:
         penalty: float = 1e12,
         tolerance: float = 0.5,
         rollback: bool = True,
+        sample_stride: int = 1,
+        record_interval: int | None = None,
     ) -> None:
         self.curves = curves
         self.interval = max(1, int(interval))
         self.penalty = float(penalty)
         self.tolerance = float(tolerance)
         self.rollback = bool(rollback)
+        self.sample_stride = max(1, int(sample_stride))
+        self.record_interval = (
+            self.interval if record_interval is None else max(1, int(record_interval))
+        )
         self.output_dir = Path(output_dir) if output_dir is not None else None
         self.history_path = (
             self.output_dir / "link_guard_history.csv" if self.output_dir else None
@@ -91,7 +105,11 @@ class PairwiseLinkGuard:
         matrix = np.zeros((n, n), dtype=float)
         for i in range(n):
             for j in range(i + 1, n):
-                val = _pairwise_gauss_link(self.curves[i], self.curves[j])
+                val = _pairwise_gauss_link(
+                    self.curves[i],
+                    self.curves[j],
+                    sample_stride=self.sample_stride,
+                )
                 matrix[i, j] = val
                 matrix[j, i] = val
         return matrix
@@ -109,6 +127,8 @@ class PairwiseLinkGuard:
             "penalty": self.penalty,
             "interval": self.interval,
             "rollback": self.rollback,
+            "sample_stride": self.sample_stride,
+            "record_interval": self.record_interval,
         }
         self.audit_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
@@ -151,7 +171,8 @@ class PairwiseLinkGuard:
                 self.last_safe_x = np.array(x, dtype=float, copy=True)
             self.last_safe_iteration = int(iteration)
             self.last_safe_objective = None if objective is None else float(objective)
-        self._record(iteration, penalty, max_abs_delta, changed)
+        if penalty or iteration == 1 or iteration % self.record_interval == 0:
+            self._record(iteration, penalty, max_abs_delta, changed)
         return penalty
 
     def _changed_pairs(self, matrix: np.ndarray) -> tuple[list[dict[str, Any]], float]:
@@ -194,6 +215,8 @@ class PairwiseLinkGuard:
             "last_safe_iteration": self.last_safe_iteration,
             "last_safe_objective": self.last_safe_objective,
             "rollback": self.rollback,
+            "sample_stride": self.sample_stride,
+            "record_interval": self.record_interval,
         }
 
     def restore_last_safe(self, target: Any) -> bool:

@@ -132,6 +132,7 @@ def _adaptive_R0_R1_search(
     order: int,
     total_current: float,
     regularizations: list | None,
+    numquadpoints: int = DEFAULT_COIL_QUADPOINTS,
     max_adaptive_iterations: int = MAX_ADAPTIVE_ITERATIONS,
     adaptive_tolerance: float = ADAPTIVE_TOLERANCE,
 ) -> Tuple[float, float]:
@@ -152,6 +153,8 @@ def _adaptive_R0_R1_search(
         Total coil current for temporary coils.
     regularizations : list | None
         Regularization objects for coils_via_symmetries.
+    numquadpoints : int, default=DEFAULT_COIL_QUADPOINTS
+        Quadrature points along each base coil curve.
     max_adaptive_iterations : int, default=MAX_ADAPTIVE_ITERATIONS
         Maximum iterations for the adaptive search.
     adaptive_tolerance : float, default=ADAPTIVE_TOLERANCE
@@ -209,7 +212,7 @@ def _adaptive_R0_R1_search(
             R0=R0,
             R1=R1,
             order=order,
-            numquadpoints=DEFAULT_COIL_QUADPOINTS,
+            numquadpoints=numquadpoints,
         )
 
         base_currents_temp = _make_base_currents(total_current, ncoils)

@@ -39,6 +39,7 @@ def _compute_thresholds_from_surface(
 
     Scaling rules:
       - Length-like thresholds (length, cc, cs): divided by a0
+      - *_threshold_device overrides: used directly in device scale
       - Curvature-like thresholds (curvature, msc): multiplied by a0
       - Force threshold (N/m, ∝ I²/d): divided by a0
       - Torque threshold (MN, ∝ I²/d·r ∝ I²): no a0 scaling
@@ -96,7 +97,7 @@ def _compute_thresholds_from_surface(
         curvature_threshold *= a0
         torsion_threshold *= a0
         msc_threshold *= a0
-        force_threshold *= a0
+        force_threshold /= a0
     else:
         length_threshold /= a0
         cc_threshold /= a0
@@ -107,16 +108,40 @@ def _compute_thresholds_from_surface(
         force_threshold /= a0
         finite_build_width = max(_MAX_FINITE_BUILD_WIDTH / a0, _MIN_FINITE_BUILD_WIDTH)
         cc_threshold = max(cc_threshold, _MIN_CC_TO_FB_RATIO * finite_build_width)
-    return {
+    device_overrides = {
+        "length_threshold": "length_threshold_device",
+        "cc_threshold": "cc_threshold_device",
+        "cs_threshold": "cs_threshold_device",
+        "curvature_threshold": "curvature_threshold_device",
+        "torsion_threshold": "torsion_threshold_device",
+        "msc_threshold": "msc_threshold_device",
+        "force_threshold": "force_threshold_device",
+        "torque_threshold": "torque_threshold_device",
+    }
+    values = {
         "length_threshold": length_threshold,
-        "flux_threshold": flux_threshold,
         "cc_threshold": cc_threshold,
         "cs_threshold": cs_threshold,
-        "msc_threshold": msc_threshold,
         "curvature_threshold": curvature_threshold,
         "torsion_threshold": torsion_threshold,
+        "msc_threshold": msc_threshold,
         "force_threshold": force_threshold,
         "torque_threshold": torque_threshold,
+    }
+    for target_key, override_key in device_overrides.items():
+        if kwargs.get(override_key) is not None:
+            values[target_key] = float(kwargs[override_key])
+
+    return {
+        "length_threshold": values["length_threshold"],
+        "flux_threshold": flux_threshold,
+        "cc_threshold": values["cc_threshold"],
+        "cs_threshold": values["cs_threshold"],
+        "msc_threshold": values["msc_threshold"],
+        "curvature_threshold": values["curvature_threshold"],
+        "torsion_threshold": values["torsion_threshold"],
+        "force_threshold": values["force_threshold"],
+        "torque_threshold": values["torque_threshold"],
         "finite_build_width": finite_build_width,
         "major_radius": major_radius,
         "minor_radius": minor_radius,
@@ -165,10 +190,15 @@ def _get_optimization_thresholds(
             "a0": cached.get("a0", ARIES_CS_MINOR_RADIUS / float(mnr)),
         }
     th = _compute_thresholds_from_surface(s, kwargs)
-    th["arclength_variation_threshold"] = kwargs.get(
-        "arclength_variation_threshold", 0.0
-    )
-    th["arclength_variation_threshold"] *= th["a0"] ** 2
+    if kwargs.get("arclength_variation_threshold_device") is not None:
+        th["arclength_variation_threshold"] = float(
+            kwargs["arclength_variation_threshold_device"]
+        )
+    else:
+        th["arclength_variation_threshold"] = kwargs.get(
+            "arclength_variation_threshold", 0.0
+        )
+        th["arclength_variation_threshold"] *= th["a0"] ** 2
     th["coil_width"] = coil_width_default / th["a0"]
     return th
 

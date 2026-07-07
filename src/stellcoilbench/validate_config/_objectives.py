@@ -23,14 +23,23 @@ _TERM_OPTIONS: dict[str, list[str]] = {
 
 _VALID_THRESHOLD_NAMES = {
     "length_threshold",
+    "length_threshold_device",
     "cc_threshold",
+    "cc_threshold_device",
     "cs_threshold",
+    "cs_threshold_device",
     "curvature_threshold",
+    "curvature_threshold_device",
     "torsion_threshold",
+    "torsion_threshold_device",
     "arclength_variation_threshold",
+    "arclength_variation_threshold_device",
     "msc_threshold",
+    "msc_threshold_device",
     "force_threshold",
+    "force_threshold_device",
     "torque_threshold",
+    "torque_threshold_device",
     "flux_threshold",
     "structural_stress_threshold",
 }
@@ -56,6 +65,32 @@ _VALID_LINK_GUARD_PARAMS = {
     "link_guard_penalty",
     "link_guard_tolerance",
     "link_guard_rollback",
+    "link_guard_sample_stride",
+    "link_guard_record_interval",
+}
+
+_VALID_CS_GUARD_PARAMS = {
+    "cs_guard",
+    "cs_guard_interval",
+    "cs_guard_hard_min",
+    "cs_guard_soft_min",
+    "cs_guard_penalty",
+    "cs_guard_rollback",
+}
+
+_VALID_EARLY_STOP_PARAMS = {
+    "enabled",
+    "min_eval",
+    "check_interval",
+    "hard_min_cc",
+    "hard_min_cs",
+    "sustained_bad_checks",
+    "max_curvature_abort",
+    "max_torsion_abort",
+    "max_msc_abort",
+    "max_link_guard_violations",
+    "objective_stall_window",
+    "objective_min_relative_improvement",
 }
 
 _VALID_STRUCTURAL_PARAMS = {
@@ -87,6 +122,8 @@ def _validate_objective_terms(obj_terms: Any, pfx: str) -> list[str]:
         | _VALID_THRESHOLD_NAMES
         | _VALID_WEIGHT_NAMES
         | _VALID_LINK_GUARD_PARAMS
+        | _VALID_CS_GUARD_PARAMS
+        | {"early_stop"}
         | _VALID_STRUCTURAL_PARAMS
     )
 
@@ -104,7 +141,11 @@ def _validate_objective_terms(obj_terms: Any, pfx: str) -> list[str]:
                     errors.append(
                         f"{pfx}coil_objective_terms.{term_name} must be a boolean"
                     )
-            elif term_name == "link_guard_interval":
+            elif term_name in (
+                "link_guard_interval",
+                "link_guard_sample_stride",
+                "link_guard_record_interval",
+            ):
                 if not isinstance(term_value, int) or term_value < 1:
                     errors.append(
                         f"{pfx}coil_objective_terms.{term_name} must be a positive integer"
@@ -113,6 +154,68 @@ def _validate_objective_terms(obj_terms: Any, pfx: str) -> list[str]:
                 errors.append(
                     f"{pfx}coil_objective_terms.{term_name} must be a positive number"
                 )
+            continue
+
+        if term_name in _VALID_CS_GUARD_PARAMS:
+            if term_name in ("cs_guard", "cs_guard_rollback"):
+                if not isinstance(term_value, bool):
+                    errors.append(
+                        f"{pfx}coil_objective_terms.{term_name} must be a boolean"
+                    )
+            elif term_name == "cs_guard_interval":
+                if not isinstance(term_value, int) or term_value < 1:
+                    errors.append(
+                        f"{pfx}coil_objective_terms.{term_name} must be a positive integer"
+                    )
+            elif not _is_valid_positive_number(term_value):
+                errors.append(
+                    f"{pfx}coil_objective_terms.{term_name} must be a positive number"
+                )
+            continue
+
+        if term_name == "early_stop":
+            if not isinstance(term_value, dict):
+                errors.append(f"{pfx}coil_objective_terms.early_stop must be a dictionary")
+                continue
+            unknown = set(term_value) - _VALID_EARLY_STOP_PARAMS
+            if unknown:
+                errors.append(
+                    f"{pfx}coil_objective_terms.early_stop has unknown keys: "
+                    f"{', '.join(sorted(unknown))}"
+                )
+            if "enabled" in term_value and not isinstance(term_value["enabled"], bool):
+                errors.append(
+                    f"{pfx}coil_objective_terms.early_stop.enabled must be a boolean"
+                )
+            for int_key in (
+                "min_eval",
+                "check_interval",
+                "sustained_bad_checks",
+                "max_link_guard_violations",
+                "objective_stall_window",
+            ):
+                if int_key in term_value and (
+                    not isinstance(term_value[int_key], int) or term_value[int_key] < 0
+                ):
+                    errors.append(
+                        f"{pfx}coil_objective_terms.early_stop.{int_key} "
+                        "must be a non-negative integer"
+                    )
+            for number_key in (
+                "hard_min_cc",
+                "hard_min_cs",
+                "max_curvature_abort",
+                "max_torsion_abort",
+                "max_msc_abort",
+                "objective_min_relative_improvement",
+            ):
+                if number_key in term_value and not _is_valid_non_negative_number(
+                    term_value[number_key]
+                ):
+                    errors.append(
+                        f"{pfx}coil_objective_terms.early_stop.{number_key} "
+                        "must be a non-negative number"
+                    )
             continue
 
         if term_name in _VALID_STRUCTURAL_PARAMS:
