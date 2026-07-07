@@ -78,6 +78,7 @@ def _apply_all_post_processing_flags(
 def _register_commands() -> None:
     """Register all subcommands with the app."""
     from . import list_cases_cmd
+    from . import monitor_progress
     from . import post_process
     from . import sensitivity_cmd
     from . import submit_run
@@ -86,6 +87,7 @@ def _register_commands() -> None:
 
     validate_cmd.register(app)
     list_cases_cmd.register(app)
+    monitor_progress.register(app)
     update_db_cmd.register(app)
     submit_run.register(app)
     post_process.register(app)
@@ -101,12 +103,14 @@ def main() -> None:
 
 # Re-export command functions for tests (imports after _register_commands to avoid circular deps)
 from . import list_cases_cmd as _list_cases_mod  # noqa: E402
+from . import monitor_progress as _monitor_progress_mod  # noqa: E402
 from . import post_process as _post_process_mod  # noqa: E402
 from . import submit_run as _submit_run_mod  # noqa: E402
 from . import update_db_cmd as _update_db_mod  # noqa: E402
 from . import validate_cmd as _validate_mod  # noqa: E402
 
 list_cases = _list_cases_mod.list_cases_cmd
+monitor_progress = _monitor_progress_mod.monitor_progress_cmd
 update_db_cmd = _update_db_mod.update_db_cmd
 validate_config_cmd = _validate_mod.validate_config_cmd
 submit_case = _submit_run_mod.submit_case
