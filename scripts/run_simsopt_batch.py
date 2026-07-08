@@ -84,6 +84,11 @@ CSV_FIELDS = [
     "final_linking_number",
     "optimization_time",
     "walltime_sec",
+    "target_avg_BdotN_over_B",
+    "target_final_min_cc_separation",
+    "target_final_min_cs_separation",
+    "target_final_max_curvature",
+    "target_final_max_torsion",
     "meets_targets",
     "run_dir",
 ]
@@ -163,6 +168,21 @@ def _load_policy(path: Path) -> dict[str, Any]:
         return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except Exception:
         return {}
+
+
+def _policy_targets(policy: dict[str, Any] | None) -> dict[str, float]:
+    """Return engineering screening targets, allowing policy-level overrides."""
+    targets = dict(TARGETS)
+    policy = policy or {}
+    configured_targets = [
+        policy.get("targets", {}) or {},
+        (policy.get("common", {}) or {}).get("targets", {}) or {},
+    ]
+    for configured in configured_targets:
+        for key, value in configured.items():
+            if key in targets and value is not None:
+                targets[key] = float(value)
+    return targets
 
 
 def _as_list(value: Any, default: list[Any] | None = None) -> list[Any]:
@@ -746,17 +766,17 @@ def _focus_jobs(
     return jobs
 
 
-def _meets_targets(metrics: dict[str, Any]) -> bool:
+def _meets_targets(metrics: dict[str, Any], targets: dict[str, float]) -> bool:
     return (
-        float(metrics.get("avg_BdotN_over_B", 999.0)) <= TARGETS["avg_BdotN_over_B"]
+        float(metrics.get("avg_BdotN_over_B", 999.0)) <= targets["avg_BdotN_over_B"]
         and float(metrics.get("final_min_cc_separation", 0.0))
-        >= TARGETS["final_min_cc_separation"]
+        >= targets["final_min_cc_separation"]
         and float(metrics.get("final_min_cs_separation", 0.0))
-        >= TARGETS["final_min_cs_separation"]
+        >= targets["final_min_cs_separation"]
         and float(metrics.get("final_max_curvature", 999.0))
-        <= TARGETS["final_max_curvature"]
+        <= targets["final_max_curvature"]
         and float(metrics.get("final_max_torsion", 999.0))
-        <= TARGETS["final_max_torsion"]
+        <= targets["final_max_torsion"]
     )
 
 
@@ -776,6 +796,7 @@ def _record_from_metrics(job: dict[str, Any], run_dir: Path, metrics: dict[str, 
     length_std = length_variance**0.5 if length_variance is not None else None
     length_cv = length_std / mean_length if mean_length and mean_length > 0 else None
     length_ratio = max_length / min_length if min_length and min_length > 0 else None
+    targets = job.get("targets") or TARGETS
     return {
         "run_id": job["run_id"],
         "backend": job["backend"],
@@ -824,7 +845,12 @@ def _record_from_metrics(job: dict[str, Any], run_dir: Path, metrics: dict[str, 
         "final_linking_number": metrics.get("final_linking_number"),
         "optimization_time": metrics.get("optimization_time"),
         "walltime_sec": metrics.get("walltime_sec"),
-        "meets_targets": _meets_targets(metrics),
+        "target_avg_BdotN_over_B": targets["avg_BdotN_over_B"],
+        "target_final_min_cc_separation": targets["final_min_cc_separation"],
+        "target_final_min_cs_separation": targets["final_min_cs_separation"],
+        "target_final_max_curvature": targets["final_max_curvature"],
+        "target_final_max_torsion": targets["final_max_torsion"],
+        "meets_targets": _meets_targets(metrics, targets),
         "run_dir": str(run_dir),
     }
 
@@ -833,6 +859,7 @@ def _failure_record(job: dict[str, Any], run_dir: Path, exc: BaseException) -> d
     case = job["case"]
     optimizer = case.get("optimizer_params", {})
     metadata = case.get("experiment_metadata", {})
+    targets = job.get("targets") or TARGETS
     return {
         "run_id": job["run_id"],
         "backend": job["backend"],
@@ -850,6 +877,12 @@ def _failure_record(job: dict[str, Any], run_dir: Path, exc: BaseException) -> d
         "order": case.get("coils_params", {}).get("order"),
         "algorithm": optimizer.get("algorithm", ""),
         "max_iterations": optimizer.get("max_iterations", ""),
+        "target_avg_BdotN_over_B": targets["avg_BdotN_over_B"],
+        "target_final_min_cc_separation": targets["final_min_cc_separation"],
+        "target_final_min_cs_separation": targets["final_min_cs_separation"],
+        "target_final_max_curvature": targets["final_max_curvature"],
+        "target_final_max_torsion": targets["final_max_torsion"],
+        "meets_targets": False,
         "run_dir": str(run_dir),
     }
 
@@ -1014,6 +1047,7 @@ def _run_backend_group(
 def main() -> None:
     args = _parse_args()
     policy = _load_policy(args.policy)
+    targets = _policy_targets(policy)
     if policy:
         args.surface = policy.get("surface", args.surface)
         args.focus_executable = policy.get("focus_executable", args.focus_executable)
@@ -1052,6 +1086,8 @@ def main() -> None:
         jobs = [job for idx, job in indexed_jobs if idx in selected_indexes]
     if args.limit is not None:
         jobs = jobs[: args.limit]
+    for job in jobs:
+        job["targets"] = targets
 
     manifest_jobs = []
     for job in jobs:
@@ -1080,7 +1116,7 @@ def main() -> None:
 
     manifest = {
         "surface": args.surface,
-        "targets": TARGETS,
+        "targets": targets,
         "policy": str(args.policy),
         "max_parallel_simsopt": max_parallel_simsopt,
         "max_parallel_focus": max_parallel_focus,
