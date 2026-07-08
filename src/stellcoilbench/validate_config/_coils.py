@@ -43,6 +43,13 @@ def _validate_coils_params(coils_params: Any, pfx: str) -> list[str]:
         "fix_currents",
         "fix_center",
         "fix_orientation",
+        "init_family",
+        "current_family",
+        "major_radius_scale",
+        "minor_radius_scale",
+        "radial_offset",
+        "current_scale",
+        "current_weights",
     }
     for key in coils_params:
         if key not in valid_keys:
@@ -66,4 +73,21 @@ def _validate_coils_params(coils_params: Any, pfx: str) -> list[str]:
     errors.extend(
         _validate_positive_int_field(coils_params, "order", pfx, "coils_params")
     )
+    for key in ("major_radius_scale", "minor_radius_scale", "current_scale"):
+        if key in coils_params:
+            value = coils_params[key]
+            if not isinstance(value, (int, float)) or value <= 0:
+                errors.append(f"{pfx}coils_params.{key} must be a positive number")
+    if "radial_offset" in coils_params and not isinstance(
+        coils_params["radial_offset"], (int, float)
+    ):
+        errors.append(f"{pfx}coils_params.radial_offset must be a number")
+    if "current_weights" in coils_params:
+        weights = coils_params["current_weights"]
+        if not isinstance(weights, list) or not all(
+            isinstance(value, (int, float)) and value > 0 for value in weights
+        ):
+            errors.append(
+                f"{pfx}coils_params.current_weights must be a list of positive numbers"
+            )
     return errors

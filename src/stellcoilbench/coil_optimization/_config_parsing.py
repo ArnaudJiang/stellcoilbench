@@ -48,6 +48,8 @@ _THRESHOLD_KEYS = (
     "torsion_threshold_device",
     "arclength_variation_threshold",
     "arclength_variation_threshold_device",
+    "length_variance_threshold",
+    "length_variance_threshold_device",
     "msc_threshold",
     "msc_threshold_device",
     "force_threshold",
@@ -352,7 +354,12 @@ def _prepare_optimization_config(
         logger.debug("Failed to set surface filename/range attributes: %s", exc)
 
     # --- target B and virtual casing ---
-    target_B = get_target_B_from_surface(surface_file)
+    target_B_override = surface_params.get("target_B")
+    target_B = (
+        float(target_B_override)
+        if target_B_override is not None
+        else get_target_B_from_surface(surface_file)
+    )
     coil_params["target_B"] = target_B
 
     vc_target, vc_target_plot = _setup_virtual_casing(

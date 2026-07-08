@@ -201,6 +201,24 @@ class TestValidateCaseConfig:
         errors = validate_case_config(data)
         assert_errors_contain(errors, "surface_params.range must be one of")
 
+    def test_surface_target_b_override(self):
+        """surface_params.target_B is an allowed positive physical override."""
+        data = _merge(
+            _base_config(),
+            {"surface_params": {"target_B": 1.25}},
+        )
+        errors = validate_case_config(data)
+        assert not errors
+
+    def test_surface_target_b_override_must_be_positive(self):
+        """surface_params.target_B must be a positive number when provided."""
+        data = _merge(
+            _base_config(),
+            {"surface_params": {"target_B": 0.0}},
+        )
+        errors = validate_case_config(data)
+        assert_errors_contain(errors, "surface_params.target_B must be a positive number")
+
     @pytest.mark.parametrize(
         "field_path,invalid_value,expected_substr",
         [

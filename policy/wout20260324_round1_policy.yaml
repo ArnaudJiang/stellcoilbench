@@ -1,0 +1,78 @@
+surface: plasma_surfaces/wout_20260324.nc
+focus_executable: /home/jiangxm/.local/bin/xfocus
+results_dir: results/round1_wout20260324_n4_full
+
+resources:
+  max_parallel_simsopt: 32
+  max_parallel_focus: 64
+  surface_resolution: 32
+
+targets:
+  avg_BdotN_over_B: 0.005
+  final_min_cc_separation: 0.25
+  final_min_cs_separation: 0.25
+  final_max_curvature: 5.0
+  final_max_torsion: 15.0
+
+common:
+  description: Round1 full n=4 scan on wout_20260324
+  surface_range: half period
+  ncoils: 4
+  thresholds:
+    length_threshold: 12.0
+    cc_threshold: 0.25
+    cs_threshold: 0.25
+    curvature_threshold: 5.0
+    torsion_threshold: 15.0
+    msc_threshold: 20.0
+
+simsopt_queues:
+  lbfgsb_geometry_guard:
+    grid:
+      algorithm: [L-BFGS-B]
+      order: [4, 6]
+      max_iterations: [1000]
+      flux_weight: [40.0, 80.0]
+      cc_weight: [200.0, 500.0, 1000.0]
+      cs_weight: [200.0, 500.0, 1000.0]
+      curvature_weight: [5.0, 20.0]
+      torsion_weight: [5.0, 20.0]
+  auglag_constraints:
+    fixed:
+      max_iter_subopt: 20
+    grid:
+      algorithm: [augmented_lagrangian]
+      order: [4, 6]
+      max_iterations: [1000]
+      flux_weight: [40.0]
+      cc_weight: [500.0, 1000.0]
+      cs_weight: [500.0, 1000.0]
+      curvature_weight: [20.0]
+      torsion_weight: [20.0]
+  high_order_refine:
+    grid:
+      algorithm: [L-BFGS-B]
+      order: [8]
+      max_iterations: [1000]
+      flux_weight: [40.0, 80.0]
+      cc_weight: [500.0, 1000.0]
+      cs_weight: [500.0, 1000.0]
+      curvature_weight: [20.0, 50.0]
+      torsion_weight: [20.0]
+
+focus_queues:
+  cc_cs_balanced:
+    grid:
+      order: [4, 6]
+      max_iterations: [1000]
+      weight_bnorm: [10.0, 30.0]
+      weight_ccsep: [100.0, 300.0, 1000.0]
+      weight_cssep: [20.0, 80.0]
+      weight_curv: [1.0, 5.0]
+      weight_ttlen: [1.0]
+      target_length: [0.0, 4.0]
+      init_radius: [0.45, 0.60]
+      ccsep_alpha: [10.0, 30.0]
+      ccsep_beta: [2.0]
+      cssep_factor: [4.0]
+      curv_k0: [5.0]

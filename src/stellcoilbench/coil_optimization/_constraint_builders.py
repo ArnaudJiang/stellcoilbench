@@ -74,6 +74,12 @@ _TERM_MAP: dict[str, dict[str, Callable[[Any, float], Any]]] = {
         "l1": _sum_identity,
         "l1_threshold": _sum_identity,
     },
+    "coil_length_variance": {
+        "l1": _identity,
+        "l1_threshold": _qp_max_thresh,
+        "l2": _qp_max_zero,
+        "l2_threshold": _qp_max_thresh,
+    },
     "coil_mean_squared_curvature": {
         "l2": _sum_qp_max_zero,
         "l2_threshold": _sum_qp_max_thresh,
@@ -110,6 +116,7 @@ callable ``(obj, thresh) -> constraint_objective``.
 
 _NAME_MAP: dict[str, str] = {
     "total_length": "Length",
+    "coil_length_variance": "Length Var",
     "coil_mean_squared_curvature": "MSC",
     "coil_arclength_variation": "Arclength Var",
     "coil_curvature": "κ",
@@ -242,6 +249,8 @@ def _compute_constraint_scaling_for_term(
             return base_scaling * major_radius
         elif term_name == "coil_mean_squared_curvature":
             return base_scaling * (major_radius**2)
+        elif term_name == "coil_length_variance":
+            return base_scaling / (major_radius**2)
         elif term_name == "coil_arclength_variation":
             return base_scaling / (major_radius**2)
         return base_scaling
@@ -263,6 +272,8 @@ def _compute_constraint_scaling_for_term(
             return base_scaling / (major_radius ** (p_value - 1))
         elif term_name == "coil_mean_squared_curvature":
             return base_scaling * (major_radius ** (2 * p_value - 2))
+        elif term_name == "coil_length_variance":
+            return base_scaling / (major_radius ** (2 * p_value - 2))
         elif term_name == "coil_arclength_variation":
             return base_scaling / (major_radius ** (2 * p_value - 2))
         return base_scaling
@@ -279,6 +290,7 @@ def _build_c_list_and_constraint_scaling_from_coil_objective_terms(
     Jls: list,
     Jcs: list,
     Jalenvar: list,
+    Jlengthvar: Any,
     Jmscs: list,
     Jlink: Any,
     Jforce: Any,
@@ -304,6 +316,8 @@ def _build_c_list_and_constraint_scaling_from_coil_objective_terms(
         Flux and distance objectives.
     Jls, Jcs, Jalenvar, Jmscs : list
         Per-coil objectives (length, curvature, arclength variation, MSC).
+    Jlengthvar : objective
+        Objective for variance of per-coil lengths.
     Jlink, Jforce, Jtorque : objectives
         Linking number and force/torque.
     Jts : list | None
@@ -350,12 +364,14 @@ def _build_c_list_and_constraint_scaling_from_coil_objective_terms(
     curvature_threshold = thresholds["curvature_threshold"]
     torsion_threshold = thresholds.get("torsion_threshold", 0.0)
     arclength_variation_threshold = thresholds.get("arclength_variation_threshold", 0.0)
+    length_variance_threshold = thresholds.get("length_variance_threshold", 0.0)
     msc_threshold = thresholds["msc_threshold"]
     force_threshold = thresholds["force_threshold"]
     torque_threshold = thresholds["torque_threshold"]
 
     obj_map: dict[str, Any] = {
         "total_length": sum(Jls),
+        "coil_length_variance": Jlengthvar,
         "coil_curvature": sum(Jcs),
         "coil_arclength_variation": Jalenvar,
         "coil_mean_squared_curvature": Jmscs,
@@ -365,6 +381,7 @@ def _build_c_list_and_constraint_scaling_from_coil_objective_terms(
     }
     thresh_map: dict[str, float | None] = {
         "total_length": length_threshold,
+        "coil_length_variance": length_variance_threshold,
         "coil_curvature": curvature_threshold,
         "coil_arclength_variation": arclength_variation_threshold,
         "coil_mean_squared_curvature": msc_threshold,
@@ -515,12 +532,14 @@ def _build_modular_coil_constraint_objects(
         MeanSquaredCurvature,
     )
     from simsopt.field.force import LpCurveForce, LpCurveTorque
+    from ._length_balance import CoilLengthVariance
 
     curvature_p, force_p, torque_p, torsion_p = _extract_p_values(coil_objective_terms)
     # force_threshold, torque_threshold are already resolved in get_full_thresholds
     force_thresh, torque_thresh = force_threshold, torque_threshold
 
     Jls = [CurveLength(c) for c in base_curves]
+    Jlengthvar = CoilLengthVariance(Jls)
     Jccdist = CurveCurveDistance(curves, cc_threshold, num_basecurves=ncoils)
     Jcsdist = CurveSurfaceDistance(curves, s, cs_threshold)
     Jalenvar = [ArclengthVariation(c) for c in base_curves]
@@ -537,6 +556,7 @@ def _build_modular_coil_constraint_objects(
 
     return {
         "Jls": Jls,
+        "Jlengthvar": Jlengthvar,
         "Jccdist": Jccdist,
         "Jcsdist": Jcsdist,
         "Jalenvar": Jalenvar,

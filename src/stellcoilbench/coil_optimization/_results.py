@@ -132,6 +132,7 @@ class OptimizationOutcome:
     pp_flags: PostProcessingConfig = field(default_factory=PostProcessingConfig)
     B_initial: Any = None
     structural_max_von_mises_Pa: float | None = None
+    initial_geometry_metrics: Dict[str, Any] = field(default_factory=dict)
 
 
 def _save_vtk_outputs(
@@ -277,6 +278,9 @@ def _compute_final_metrics(
 
     if post_processing_results:
         _merge_post_processing_into_results(results, post_processing_results)
+
+    if outcome.initial_geometry_metrics:
+        results.update(outcome.initial_geometry_metrics)
 
     # Add max von Mises for correlation studies (top-level for collect_metrics).
     # Prefer post-processing value when available; otherwise use optimization value.

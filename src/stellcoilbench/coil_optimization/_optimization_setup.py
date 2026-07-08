@@ -228,6 +228,78 @@ def _rng_from_kwargs(kwargs: Dict[str, Any]) -> np.random.Generator:
         raise ValueError(f"random_seed must be an integer, got {seed!r}") from exc
 
 
+_INITIALIZATION_KWARG_KEYS = {
+    "major_radius_scale",
+    "minor_radius_scale",
+    "radial_offset",
+    "current_scale",
+    "current_weights",
+}
+
+
+def _initialization_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Return supported fresh-coil initialization kwargs from case config."""
+    return {key: kwargs[key] for key in _INITIALIZATION_KWARG_KEYS if key in kwargs}
+
+
+def compute_initial_geometry_metrics(
+    *,
+    s: "SurfaceRZFourier",
+    coils: list,
+    base_curves: list,
+    ncoils: int,
+    initialization_metadata: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    """Compute metrics describing the actual initial coil basin."""
+    from simsopt.geo import CurveCurveDistance, CurveLength, CurveSurfaceDistance, LinkingNumber
+
+    metadata = dict(initialization_metadata or {})
+    lengths = [float(CurveLength(curve).J()) for curve in base_curves[:ncoils]]
+    currents = [
+        float(abs(coils[idx].current.get_value()))
+        for idx in range(min(ncoils, len(coils)))
+    ]
+    curves = base_curves[:ncoils]
+    min_cc = float(CurveCurveDistance(curves, 0.0, num_basecurves=ncoils).shortest_distance())
+    min_cs = float(CurveSurfaceDistance(curves, s, 0.0).shortest_distance())
+    linking = float(LinkingNumber(curves, downsample=2).J())
+    total_length = float(sum(lengths))
+    mean_length = total_length / len(lengths) if lengths else 0.0
+    length_variance = (
+        float(sum((length - mean_length) ** 2 for length in lengths) / len(lengths))
+        if lengths
+        else 0.0
+    )
+    result = {
+        "initial_geometry": {
+            **metadata,
+            "initial_min_cc_separation": min_cc,
+            "initial_min_cs_separation": min_cs,
+            "initial_linking_number": linking,
+            "initial_length_per_coil": lengths,
+            "initial_current_per_coil": currents,
+            "initial_total_length": total_length,
+            "initial_mean_coil_length": float(mean_length),
+            "initial_length_variance": length_variance,
+        },
+        "initial_R0": metadata.get("initial_R0"),
+        "initial_R1": metadata.get("initial_R1"),
+        "requested_major_radius_scale": metadata.get("requested_major_radius_scale"),
+        "requested_minor_radius_scale": metadata.get("requested_minor_radius_scale"),
+        "requested_radial_offset": metadata.get("requested_radial_offset"),
+        "requested_current_scale": metadata.get("requested_current_scale"),
+        "initial_min_cc_separation": min_cc,
+        "initial_min_cs_separation": min_cs,
+        "initial_linking_number": linking,
+        "initial_total_length": total_length,
+        "initial_mean_coil_length": float(mean_length),
+        "initial_length_variance": length_variance,
+        "initial_length_per_coil": lengths,
+        "initial_current_per_coil": currents,
+    }
+    return result
+
+
 def _initialize_coils_for_optimization(
     s: "SurfaceRZFourier",
     target_B: float,
@@ -255,6 +327,7 @@ def _initialize_coils_for_optimization(
     """
     fix_shapes: bool = False
     rng = _rng_from_kwargs(kwargs)
+    initialization_metadata = kwargs.setdefault("_initialization_metadata", {})
 
     with timed_section("coil_initialization"):
         if initial_coils is None:
@@ -270,6 +343,8 @@ def _initialize_coils_for_optimization(
                     numquadpoints=numquadpoints,
                     coil_width=coil_width,
                     regularization=regularization,
+                    initialization_metadata=initialization_metadata,
+                    **_initialization_kwargs(kwargs),
                 )
             dof_perturbation = kwargs.get("dof_perturbation", 0.0)
             if isinstance(dof_perturbation, (int, float)) and dof_perturbation > 0:
@@ -284,6 +359,16 @@ def _initialize_coils_for_optimization(
                     coil.curve.x = x + noise
         else:
             coils = initial_coils
+            initialization_metadata.update(
+                {
+                    "initialization_source": "warm_start",
+                    "requested_major_radius_scale": kwargs.get("major_radius_scale"),
+                    "requested_minor_radius_scale": kwargs.get("minor_radius_scale"),
+                    "requested_radial_offset": kwargs.get("radial_offset"),
+                    "requested_current_scale": kwargs.get("current_scale"),
+                    "requested_current_weights": kwargs.get("current_weights"),
+                }
+            )
             dof_perturbation = kwargs.get("dof_perturbation", 0.0)
             if isinstance(dof_perturbation, (int, float)) and dof_perturbation > 0:
                 proc0_print(
@@ -416,6 +501,7 @@ def _build_objectives_and_constraints(
     Jccdist = constraint_objs["Jccdist"]
     Jcsdist = constraint_objs["Jcsdist"]
     Jalenvar = constraint_objs["Jalenvar"]
+    Jlengthvar = constraint_objs["Jlengthvar"]
     Jcs = constraint_objs["Jcs"]
     Jts = constraint_objs.get("Jts")
     Jlink = constraint_objs["Jlink"]
@@ -427,6 +513,7 @@ def _build_objectives_and_constraints(
         "cc_threshold": cc_threshold,
         "cs_threshold": cs_threshold,
         "length_threshold": length_threshold,
+        "length_variance_threshold": thresholds.get("length_variance_threshold", 0.0),
         "curvature_threshold": curvature_threshold,
         "torsion_threshold": torsion_threshold,
         "arclength_variation_threshold": arclength_variation_threshold,
@@ -448,6 +535,7 @@ def _build_objectives_and_constraints(
         Jls,
         Jcs,
         Jalenvar,
+        Jlengthvar,
         Jmscs,
         Jlink,
         Jforce,
@@ -534,6 +622,7 @@ def _build_objectives_and_constraints(
         "Jforce": Jforce,
         "Jtorque": Jtorque,
         "Jts": Jts,
+        "Jlengthvar": Jlengthvar,
         "Jmscs": Jmscs,
         "effective_obj_terms": effective_obj_terms,
         "structural_obj": structural_obj,

@@ -93,6 +93,9 @@ class OptimizationHistoryRecorder:
                     "max_length",
                     "avg_length",
                     "min_length",
+                    "length_std",
+                    "length_cv",
+                    "length_ratio",
                     "total_length",
                     "max_curvature",
                     "mean_squared_curvature",
@@ -129,6 +132,9 @@ class OptimizationHistoryRecorder:
                     "max_length",
                     "avg_length",
                     "min_length",
+                    "length_std",
+                    "length_cv",
+                    "length_ratio",
                     "total_length",
                     "max_curvature",
                     "mean_squared_curvature",
@@ -180,6 +186,9 @@ class OptimizationHistoryRecorder:
                 "max_length": "",
                 "avg_length": "",
                 "min_length": "",
+                "length_std": "",
+                "length_cv": "",
+                "length_ratio": "",
                 "total_length": "",
                 "max_curvature": "",
                 "mean_squared_curvature": "",
@@ -190,11 +199,17 @@ class OptimizationHistoryRecorder:
             from simsopt.geo import CurveLength
 
             lengths = [float(CurveLength(c).J()) for c in self.base_curves]
+            mean_length = float(np.mean(lengths))
+            length_std = float(np.std(lengths))
+            min_length = min(lengths)
             kappas = [np.atleast_1d(c.kappa()).astype(float) for c in self.base_curves]
             return {
                 "max_length": max(lengths),
-                "avg_length": float(np.mean(lengths)),
-                "min_length": min(lengths),
+                "avg_length": mean_length,
+                "min_length": min_length,
+                "length_std": length_std,
+                "length_cv": length_std / mean_length if mean_length > 0 else "",
+                "length_ratio": max(lengths) / min_length if min_length > 0 else "",
                 "total_length": float(np.sum(lengths)),
                 "max_curvature": float(max(np.max(k) for k in kappas)),
                 "mean_squared_curvature": float(max(np.mean(k**2) for k in kappas)),
@@ -206,6 +221,9 @@ class OptimizationHistoryRecorder:
                 "max_length": "",
                 "avg_length": "",
                 "min_length": "",
+                "length_std": "",
+                "length_cv": "",
+                "length_ratio": "",
                 "total_length": "",
                 "max_curvature": "",
                 "mean_squared_curvature": "",
@@ -483,6 +501,7 @@ def _build_weights_for_scipy_minimize(
     """
     term_to_weight_key = {
         "total_length": "length_weight",
+        "coil_length_variance": "length_variance_weight",
         "coil_coil_distance": "cc_weight",
         "coil_surface_distance": "cs_weight",
         "coil_curvature": "curvature_weight",

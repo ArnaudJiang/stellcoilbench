@@ -535,6 +535,64 @@ class TestOptimizeCoils:
         assert "LandremanPaul2021_QA" in calls["surface_filename"]
         assert calls["optimize_kwargs"]["target_B"] == 1.0
 
+    def test_optimize_coils_uses_surface_target_b_override(self, tmp_path, monkeypatch):
+        plasma_dir = tmp_path / "plasma_surfaces"
+        plasma_dir.mkdir()
+        (plasma_dir / "wout_unknown.nc").write_text("dummy")
+        case_cfg = CaseConfig.from_dict(
+            {
+                "description": "test",
+                "surface_params": {
+                    "surface": "wout_unknown.nc",
+                    "range": "full torus",
+                    "target_B": 1.25,
+                },
+                "coils_params": {"ncoils": 2, "order": 2},
+                "optimizer_params": {
+                    "algorithm": "augmented_lagrangian",
+                    "algorithm_options": {"maxiter": 5},
+                },
+                "coil_objective_terms": {"total_length": "l2"},
+            }
+        )
+        monkeypatch.chdir(tmp_path)
+        calls = {}
+
+        def fake_optimize(surface, **kwargs):
+            calls["optimize_kwargs"] = kwargs
+            return ["coil"], {"ok": True}
+
+        def fake_save(coils, path):
+            calls["save_path"] = path
+
+        def fake_from_wout(filename, *args, **kwargs):
+            calls["surface_filename"] = filename
+            s = object.__new__(type("Surface", (), {}))
+            s.nfp = 1
+            s.stellsym = True
+            s.major_radius = lambda: 1.0
+            s.minor_radius = lambda: 1.0
+            return s
+
+        monkeypatch.setattr(
+            "simsopt.geo.SurfaceRZFourier.from_wout",
+            fake_from_wout,
+        )
+        monkeypatch.setattr(
+            "stellcoilbench.coil_optimization._optimization_dispatch.optimize_coils_loop",
+            fake_optimize,
+        )
+        monkeypatch.setattr("simsopt.save", fake_save)
+        results = optimize_coils(
+            case_path=tmp_path,
+            coils_out_path=tmp_path / "coils.out",
+            case_cfg=case_cfg,
+            output_dir=tmp_path / "out",
+        )
+        assert results == {"ok": True}
+        assert "wout_unknown.nc" in calls["surface_filename"]
+        assert calls["optimize_kwargs"]["target_B"] == 1.25
+
     def test_optimize_coils_unknown_surface_type(self, tmp_path, monkeypatch):
         case_cfg = CaseConfig.from_dict(
             {

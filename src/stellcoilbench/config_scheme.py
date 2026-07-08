@@ -28,6 +28,7 @@ class SurfaceParams(TypedDict, total=False):
     surface: str
     range: str
     virtual_casing: bool
+    target_B: float
 
 
 class CoilsParams(TypedDict, total=False):
@@ -41,6 +42,13 @@ class CoilsParams(TypedDict, total=False):
     coil_width: float
     vv_extension: float
     inboard_radius: float
+    init_family: str
+    current_family: str
+    major_radius_scale: float
+    minor_radius_scale: float
+    radial_offset: float
+    current_scale: float
+    current_weights: list[float]
 
 
 class OptimizerParams(TypedDict, total=False):

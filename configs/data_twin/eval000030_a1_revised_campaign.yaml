@@ -1,0 +1,38 @@
+campaign_id: eval000030_a1_revised_dt
+name: eval000030 A1 revised data twin campaign
+description: Data Twin tracking for wout_squid_eval_000030 industrial Round1 A1-revised scan.
+target_type: stellarator_coil_optimization
+
+target_metadata:
+  plasma_surface: plasma_surfaces/wout_squid_eval_000030.nc
+  n_coils: 4
+  backend_family: stellcoilbench
+  optimizer_backend: simsopt
+  wave: a1_revised
+  surface_resolution: 128
+  coil_quadpoints: 256
+  planned_cases: 1440
+  planned_parallelism: 256
+
+schema_version: 0.1
+
+metric_policy:
+  required:
+    - mean_abs_Bn
+    - max_abs_Bn
+    - total_coil_length
+    - max_curvature
+    - min_coil_coil_distance
+    - min_coil_plasma_distance
+    - max_torsion
+
+failure_thresholds:
+  max_curvature: 5.0
+  min_coil_coil_distance: 0.25
+  min_coil_plasma_distance: 0.25
+  max_torsion: 7.0
+  poor_Bn_threshold: 0.01
+
+storage:
+  root: experiments/data_twin
+  format: jsonl

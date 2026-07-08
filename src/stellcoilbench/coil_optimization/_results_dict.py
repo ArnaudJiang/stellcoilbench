@@ -11,6 +11,8 @@ from typing import Any, Dict
 
 import numpy as np
 
+from ._length_balance import coil_length_distribution_metrics
+
 
 def _build_cached_thresholds_dict(th: Dict[str, Any]) -> Dict[str, Any]:
     """Extract threshold values to cache for Fourier continuation.
@@ -32,6 +34,7 @@ def _build_cached_thresholds_dict(th: Dict[str, Any]) -> Dict[str, Any]:
         "cs_threshold",
         "msc_threshold",
         "arclength_variation_threshold",
+        "length_variance_threshold",
         "curvature_threshold",
         "force_threshold",
         "torque_threshold",
@@ -122,6 +125,9 @@ def _build_optimization_results_dict(
     max_force_flat = [float(np.asarray(f).max()) for f in max_force]
     max_torque_flat = [float(np.asarray(t).max()) for t in max_torque]
 
+    lengths = [float(CurveLength(c).J()) for c in base_curves]
+    length_metrics = coil_length_distribution_metrics(lengths)
+
     return {
         "initial_B_field": B_initial,
         "final_B_field": B_final,
@@ -151,13 +157,14 @@ def _build_optimization_results_dict(
         "_cached_thresholds": cached_thresholds,
         "final_min_cs_separation": Jcsdist.shortest_distance(),
         "final_min_cc_separation": Jccdist.shortest_distance(),
-        "final_length_per_coil": [float(CurveLength(c).J()) for c in base_curves],
+        "final_length_per_coil": lengths,
         "final_current_per_coil": [
             float(abs(coils[i].current.get_value())) for i in range(ncoils)
         ],
         "total_current_before": float(total_current),
         "total_current_after": float(total_current_final),
-        "final_total_length": sum(CurveLength(c).J() for c in base_curves),
+        "final_total_length": float(sum(lengths)),
+        **length_metrics,
         "final_max_curvature": max(np.max(c.kappa()) for c in base_curves),
         "final_average_curvature": float(
             np.mean(

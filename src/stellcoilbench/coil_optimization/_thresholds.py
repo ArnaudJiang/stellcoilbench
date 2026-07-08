@@ -76,6 +76,7 @@ def _compute_thresholds_from_surface(
     msc_threshold = kwargs.get("msc_threshold", 1.0)
     curvature_threshold = kwargs.get("curvature_threshold", 1.0)
     torsion_threshold = kwargs.get("torsion_threshold", 1.0)
+    length_variance_threshold = kwargs.get("length_variance_threshold", 0.0)
     force_threshold = kwargs.get("force_threshold", 200.0)
     torque_threshold = kwargs.get("torque_threshold", 200.0)
 
@@ -117,6 +118,7 @@ def _compute_thresholds_from_surface(
         "msc_threshold": "msc_threshold_device",
         "force_threshold": "force_threshold_device",
         "torque_threshold": "torque_threshold_device",
+        "length_variance_threshold": "length_variance_threshold_device",
     }
     values = {
         "length_threshold": length_threshold,
@@ -127,6 +129,7 @@ def _compute_thresholds_from_surface(
         "msc_threshold": msc_threshold,
         "force_threshold": force_threshold,
         "torque_threshold": torque_threshold,
+        "length_variance_threshold": length_variance_threshold / (a0**2),
     }
     for target_key, override_key in device_overrides.items():
         if kwargs.get(override_key) is not None:
@@ -142,6 +145,7 @@ def _compute_thresholds_from_surface(
         "torsion_threshold": values["torsion_threshold"],
         "force_threshold": values["force_threshold"],
         "torque_threshold": values["torque_threshold"],
+        "length_variance_threshold": values["length_variance_threshold"],
         "finite_build_width": finite_build_width,
         "major_radius": major_radius,
         "minor_radius": minor_radius,
@@ -227,6 +231,8 @@ def _get_base_scaling_for_term(term_name: str, major_radius: float) -> float:
         return major_radius
     elif term_name == "coil_mean_squared_curvature":
         return major_radius**2
+    elif term_name == "coil_length_variance":
+        return 1.0 / (major_radius**2)
     elif term_name == "coil_arclength_variation":
         return 1.0 / (major_radius**2)
     elif term_name == "linking_number":

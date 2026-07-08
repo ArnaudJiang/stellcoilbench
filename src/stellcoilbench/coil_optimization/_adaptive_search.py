@@ -91,9 +91,30 @@ def _coils_via_symmetries_compat(
     return coils_via_symmetries(base_curves, base_currents, nfp, stellsym)
 
 
+def _normalize_current_weights(
+    current_weights: list[float] | tuple[float, ...] | None,
+    ncoils: int,
+) -> list[float]:
+    """Return positive per-coil current fractions that sum to one."""
+    if current_weights is None:
+        return [1.0 / ncoils for _ in range(ncoils)]
+    if len(current_weights) != ncoils:
+        raise ValueError(
+            f"current_weights must have length ncoils={ncoils}, got {len(current_weights)}"
+        )
+    weights = [float(value) for value in current_weights]
+    if any(value <= 0.0 for value in weights):
+        raise ValueError("current_weights values must be positive")
+    total = sum(weights)
+    if total <= 0.0:
+        raise ValueError("current_weights must have positive sum")
+    return [value / total for value in weights]
+
+
 def _make_base_currents(
     total_current: float,
     ncoils: int,
+    current_weights: list[float] | tuple[float, ...] | None = None,
 ) -> list:
     """Create conditioned base currents for *ncoils* coils.
 
@@ -116,9 +137,10 @@ def _make_base_currents(
     from simsopt.field import Current
 
     inv_factor = 1.0 / CURRENT_SCALING_FACTOR
+    weights = _normalize_current_weights(current_weights, ncoils)
     base = [
-        Current(total_current / ncoils * CURRENT_SCALING_FACTOR) * inv_factor
-        for _ in range(ncoils - 1)
+        Current(total_current * weights[idx] * CURRENT_SCALING_FACTOR) * inv_factor
+        for idx in range(ncoils - 1)
     ]
     total_obj = Current(total_current)
     total_obj.fix_all()
@@ -135,6 +157,10 @@ def _adaptive_R0_R1_search(
     numquadpoints: int = DEFAULT_COIL_QUADPOINTS,
     max_adaptive_iterations: int = MAX_ADAPTIVE_ITERATIONS,
     adaptive_tolerance: float = ADAPTIVE_TOLERANCE,
+    major_radius_scale: float = 1.0,
+    minor_radius_scale: float = 1.0,
+    radial_offset: float = 0.0,
+    current_weights: list[float] | tuple[float, ...] | None = None,
 ) -> Tuple[float, float]:
     """Find suitable R0 and R1 for coil initialization via adaptive search.
 
@@ -183,8 +209,13 @@ def _adaptive_R0_R1_search(
     max_R0_scale = R0_SCALE_MAX
     max_R1_scale = R1_SCALE_MAX
 
-    R0 = major_radius * R0_scale
-    R1 = minor_radius_component * R1_scale
+    def scaled_radii() -> tuple[float, float]:
+        return (
+            major_radius * R0_scale * float(major_radius_scale) + float(radial_offset),
+            minor_radius_component * R1_scale * float(minor_radius_scale),
+        )
+
+    R0, R1 = scaled_radii()
 
     prev_R0_scale = None
     prev_R1_scale = None
@@ -215,7 +246,9 @@ def _adaptive_R0_R1_search(
             numquadpoints=numquadpoints,
         )
 
-        base_currents_temp = _make_base_currents(total_current, ncoils)
+        base_currents_temp = _make_base_currents(
+            total_current, ncoils, current_weights
+        )
 
         coils_temp = _coils_via_symmetries_compat(
             base_curves,
@@ -273,35 +306,32 @@ def _adaptive_R0_R1_search(
         if R0_scale > max_R0_scale or R1_scale > max_R1_scale:
             R0_scale = min(R0_scale, max_R0_scale)
             R1_scale = min(R1_scale, max_R1_scale)
-            R0 = major_radius * R0_scale
-            R1 = minor_radius_component * R1_scale
+            R0, R1 = scaled_radii()
             break
 
         # Priority-based adjustment: fix only ONE constraint per iteration
         if not plasma_interlink_ok:
             if points_inside_hole_count == 0:
                 R1_scale *= R1_GROWTH_FACTOR_LARGE
-                R1 = minor_radius_component * R1_scale
                 if min_cs_sep > min_cs_distance * CS_DISTANCE_MARGIN_TIGHT:
                     R0_scale *= R0_SHRINK_FACTOR_MILD
-                R0 = major_radius * R0_scale
+                R0, R1 = scaled_radii()
             elif points_outside_plasma_count == 0:
                 R1_scale *= R1_GROWTH_FACTOR_LARGE
-                R1 = minor_radius_component * R1_scale
                 if min_cs_sep > min_cs_distance * CS_DISTANCE_MARGIN_LOOSE:
                     R0_scale *= R0_SHRINK_FACTOR_GENTLE
-                R0 = major_radius * R0_scale
+                R0, R1 = scaled_radii()
             else:
                 R1_scale *= R1_GROWTH_FACTOR_SMALL
-                R1 = minor_radius_component * R1_scale
+                R0, R1 = scaled_radii()
         elif not cs_ok:
             R0_scale *= R0_GROWTH_FACTOR
-            R0 = major_radius * R0_scale
+            R0, R1 = scaled_radii()
         elif not cc_ok:
             R0_scale *= R0_GROWTH_FACTOR
-            R0 = major_radius * R0_scale
+            R0, R1 = scaled_radii()
         elif not no_coil_interlink:
             R0_scale *= R0_GROWTH_FACTOR
-            R0 = major_radius * R0_scale
+            R0, R1 = scaled_radii()
 
     return R0, R1

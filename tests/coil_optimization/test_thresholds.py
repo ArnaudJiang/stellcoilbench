@@ -36,6 +36,8 @@ def test_device_threshold_overrides_bypass_minor_radius_scaling(monkeypatch):
             "msc_threshold_device": 4.5,
             "arclength_variation_threshold": 0.5,
             "arclength_variation_threshold_device": 0.4,
+            "length_variance_threshold": 1.0,
+            "length_variance_threshold_device": 0.09,
             "force_threshold": 200.0,
             "force_threshold_device": 180.0,
             "torque_threshold": 200.0,
@@ -52,6 +54,7 @@ def test_device_threshold_overrides_bypass_minor_radius_scaling(monkeypatch):
     assert th["torsion_threshold"] == pytest.approx(6.5)
     assert th["msc_threshold"] == pytest.approx(4.5)
     assert th["arclength_variation_threshold"] == pytest.approx(0.4)
+    assert th["length_variance_threshold"] == pytest.approx(0.09)
     assert th["force_threshold"] == pytest.approx(180.0)
     assert th["torque_threshold"] == pytest.approx(190.0)
 
@@ -74,6 +77,7 @@ def test_reactor_scale_thresholds_keep_existing_scaling(monkeypatch):
             "torsion_threshold": 7.0,
             "msc_threshold": 5.0,
             "arclength_variation_threshold": 0.5,
+            "length_variance_threshold": 2.0,
             "force_threshold": 200.0,
             "torque_threshold": 200.0,
         },
@@ -86,6 +90,7 @@ def test_reactor_scale_thresholds_keep_existing_scaling(monkeypatch):
     assert th["torsion_threshold"] == pytest.approx(28.0)
     assert th["msc_threshold"] == pytest.approx(20.0)
     assert th["arclength_variation_threshold"] == pytest.approx(8.0)
+    assert th["length_variance_threshold"] == pytest.approx(0.125)
     assert th["force_threshold"] == pytest.approx(50.0)
     assert th["torque_threshold"] == pytest.approx(200.0)
 

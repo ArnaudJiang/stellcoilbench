@@ -1,0 +1,88 @@
+campaign: eval000030_industrial_round1
+name: eval000030 industrial round1
+description: Board-driven Round1 seed scan with physically fixed thresholds.
+surface: plasma_surfaces/wout_squid_eval_000030.nc
+
+stage: round1
+wave: a1_revised
+backend: simsopt
+generation_index: 1
+
+paths:
+  data_twin_root: experiments/data_twin
+  generated_dir: experiments/wout_squid_eval_000030/policies/generated
+  results_root: experiments/wout_squid_eval_000030/raw/results
+
+resolution:
+  surface_grid: 64
+  coil_quadpoints: 128
+  plot_upsample_factor: 1
+
+coil:
+  ncoils: 4
+  order: [6]
+
+optimizer:
+  algorithm: L-BFGS-B
+  max_iterations: 300
+  max_parallel_simsopt: 32
+  max_parallel_focus: 0
+  submit_batch_size: 64
+  dof_perturbation: 0.006
+
+guards:
+  cs_guard: false
+  cs_guard_interval: 10
+  cs_guard_hard_min: 0.15
+  cs_guard_soft_min: 0.25
+  cs_guard_penalty: 1.0e8
+  cs_guard_rollback: true
+  link_guard: false
+  link_guard_interval: 10
+  link_guard_penalty: 1.0e7
+  link_guard_tolerance: 0.2
+  link_guard_rollback: true
+  link_guard_sample_stride: 2
+  link_guard_record_interval: 50
+
+early_stop:
+  enabled: false
+  min_eval: 150
+  check_interval: 25
+  hard_min_cc: 0.15
+  hard_min_cs: 0.15
+  sustained_bad_checks: 3
+  max_curvature_abort: 20.0
+  max_torsion_abort: 40.0
+  max_msc_abort: 40.0
+  max_link_guard_violations: 1
+  objective_stall_window: 100
+  objective_min_relative_improvement: 0.03
+
+thresholds:
+  length_threshold_device: 24.0
+  cc_threshold_device: 0.25
+  cs_threshold_device: 0.25
+  curvature_threshold_device: 5.0
+  torsion_threshold_device: 7.0
+  msc_threshold_device: 5.0
+  arclength_variation_threshold_device: 0.5
+
+scan:
+  families:
+    - seed_bn_recover
+    - seed_balanced
+    - seed_clearance_repair
+    - seed_smooth_repair
+  seeds: [5101, 5102, 5103, 5104]
+  flux_weights: [160.0, 240.0, 320.0]
+  geom_scales: [1.0]
+
+screening:
+  hard_feasible: true
+  max_curvature: 5.0
+  mean_squared_curvature: 5.0
+  arclength_variation: 0.5
+  max_torsion: 7.0
+  length_ratio: 1.25
+  sort_by: avg_BdotN_over_B

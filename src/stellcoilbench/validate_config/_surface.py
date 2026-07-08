@@ -27,7 +27,7 @@ def _validate_surface_params(surface_params: Any, pfx: str) -> list[str]:
     if not isinstance(surface_params, dict):
         return [f"{pfx}surface_params must be a dictionary"]
 
-    valid_keys = {"surface", "range", "virtual_casing"}
+    valid_keys = {"surface", "range", "virtual_casing", "target_B"}
     for key in surface_params:
         if key not in valid_keys:
             errors.append(
@@ -46,6 +46,14 @@ def _validate_surface_params(surface_params: Any, pfx: str) -> list[str]:
             errors.append(
                 f"{pfx}surface_params.virtual_casing must be a boolean (true/false)"
             )
+    if "target_B" in surface_params:
+        target_b = surface_params["target_B"]
+        if (
+            isinstance(target_b, bool)
+            or not isinstance(target_b, (int, float))
+            or target_b <= 0
+        ):
+            errors.append(f"{pfx}surface_params.target_B must be a positive number")
     return errors
 
 

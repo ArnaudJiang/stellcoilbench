@@ -23,6 +23,7 @@ from ..post_processing._coil_io import _setup_surface_for_eval
 from ..utils import suppress_output
 from ._results import compute_total_current
 from ._thresholds import _compute_thresholds_from_surface
+from ._length_balance import coil_length_distribution_metrics
 
 if TYPE_CHECKING:
     from simsopt.field import BiotSavart
@@ -211,6 +212,7 @@ def _compute_coil_subset_metrics(
     coils_linked = _check_coils_linked_to_surface(s, base_curves_subset)
 
     lengths = [float(CurveLength(c).J()) for c in base_curves_subset]
+    length_metrics = coil_length_distribution_metrics(lengths)
     kappas = [c.kappa() for c in base_curves_subset]
     taus = [np.asarray(c.torsion()) for c in base_curves_subset]
 
@@ -220,6 +222,7 @@ def _compute_coil_subset_metrics(
         "max_torque": [float(t) for t in max_torque],
         "coils_linked_to_surface": coils_linked,
         "final_length_per_coil": lengths,
+        **length_metrics,
         "final_current_per_coil": currents,
         "final_total_length": float(sum(lengths)),
         "final_max_curvature": float(np.max([np.max(k) for k in kappas]))

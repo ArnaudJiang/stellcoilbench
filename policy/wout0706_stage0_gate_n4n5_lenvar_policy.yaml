@@ -1,0 +1,73 @@
+# Stage0 Gate matrix for the 2026-07-06/07 large-major-radius surfaces.
+#
+# Purpose:
+# - Verify the matrix enumerates correctly before launching long Simsopt runs.
+# - Exercise the new coil_length_variance objective with a small weight.
+# - Keep the first pass compact: 3 surfaces x 2 ncoils x 2 orders x 2 seeds
+#   x 3 length-variance weights = 72 jobs.
+
+surface: plasma_surfaces/wout_0706_medium.nc
+results_dir: results/wout0706_stage0_gate_n4n5_lenvar/simsopt
+
+resources:
+  surface_resolution: 64
+  max_parallel_simsopt: 12
+  max_parallel_focus: 0
+
+targets:
+  avg_BdotN_over_B: 0.005
+  final_min_cc_separation: 0.4
+  final_min_cs_separation: 0.25
+  final_max_curvature: 5.0
+  final_max_torsion: 15.0
+
+common:
+  description: Stage0 Gate matrix on wout_0706 high/medium/low pdrot surfaces
+  run_prefix: wout0706_stage0_gate
+  surface_range: half period
+  ncoils: 4
+  coil_quadpoints: 256
+  plot_upsample_factor: 1
+  thresholds:
+    length_threshold: 180.0
+    cc_threshold: 0.4
+    cs_threshold: 0.25
+    curvature_threshold: 5.0
+    torsion_threshold: 15.0
+    msc_threshold: 20.0
+
+simsopt_queues:
+  stage0_gate_lenvar:
+    fixed:
+      algorithm: L-BFGS-B
+      max_iterations: 80
+      flux_weight: 80.0
+      cc_weight: 150.0
+      cs_weight: 80.0
+      curvature_weight: 5.0
+      torsion_weight: 3.0
+      length_weight: 0.5
+      msc_weight: 1.0
+      arclength_variation_weight: 0.5
+      linking_weight: 0.0
+      length_threshold: 180.0
+      cc_threshold: 0.4
+      cs_threshold: 0.25
+      curvature_threshold: 5.0
+      torsion_threshold: 15.0
+      msc_threshold: 20.0
+      arclength_variation_threshold: 0.5
+      length_variance_threshold: 1.0
+      family: stage0_gate
+      policy_label: cc040_lenvar_light
+      wave: stage0
+      dof_perturbation: 0.01
+    grid:
+      surface:
+        - plasma_surfaces/wout_0706_high_pdrot.nc
+        - plasma_surfaces/wout_0706_medium.nc
+        - plasma_surfaces/wout_0706_low_pdrot.nc
+      ncoils: [4, 5]
+      order: [4, 5]
+      random_seed: [7061, 7062]
+      length_variance_weight: [1.0, 10.0, 100.0]

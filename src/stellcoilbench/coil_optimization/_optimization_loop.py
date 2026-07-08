@@ -44,6 +44,8 @@ from ._scipy_optimizer import (
 )
 from ._optimization_setup import (
     _build_objectives_and_constraints,
+    compute_initial_geometry_metrics,
+    _initialization_kwargs,
     _initialize_coils_for_optimization,
     _setup_biotSavart_and_initial_save,
 )
@@ -139,6 +141,12 @@ def initialize_coils_loop(
     numquadpoints: int = DEFAULT_COIL_QUADPOINTS,
     coil_width: float = 0.4,
     regularization: Callable[..., Any] | None = regularization_circ,
+    major_radius_scale: float = 1.0,
+    minor_radius_scale: float = 1.0,
+    radial_offset: float = 0.0,
+    current_scale: float = 1.0,
+    current_weights: list[float] | tuple[float, ...] | None = None,
+    initialization_metadata: dict[str, Any] | None = None,
 ) -> List[Any]:
     """
     Initialize modular coils with adaptive R0/R1 and target B-field scaling.
@@ -191,7 +199,7 @@ def initialize_coils_loop(
     else:
         regularizations = None
 
-    total_current = INITIAL_TOTAL_CURRENT
+    total_current = INITIAL_TOTAL_CURRENT * float(current_scale)
 
     R0, R1 = _adaptive_R0_R1_search(
         s,
@@ -200,7 +208,26 @@ def initialize_coils_loop(
         total_current,
         regularizations,
         numquadpoints=numquadpoints,
+        major_radius_scale=float(major_radius_scale),
+        minor_radius_scale=float(minor_radius_scale),
+        radial_offset=float(radial_offset),
+        current_weights=current_weights,
     )
+    if initialization_metadata is not None:
+        initialization_metadata.update(
+            {
+                "initialization_source": "fresh_adaptive",
+                "initial_R0": float(R0),
+                "initial_R1": float(R1),
+                "requested_major_radius_scale": float(major_radius_scale),
+                "requested_minor_radius_scale": float(minor_radius_scale),
+                "requested_radial_offset": float(radial_offset),
+                "requested_current_scale": float(current_scale),
+                "requested_current_weights": list(current_weights)
+                if current_weights is not None
+                else None,
+            }
+        )
 
     # Final coil creation with determined R0 and R1
     base_curves = create_equally_spaced_curves(
@@ -212,7 +239,7 @@ def initialize_coils_loop(
         order=order,
         numquadpoints=numquadpoints,
     )
-    base_currents = _make_base_currents(total_current, ncoils)
+    base_currents = _make_base_currents(total_current, ncoils, current_weights)
     coils = _coils_via_symmetries_compat(
         base_curves,
         base_currents,
@@ -226,7 +253,7 @@ def initialize_coils_loop(
     tolerance = CURRENT_SCALING_CONVERGENCE_TOL
     for _ in range(max_iterations):
         # Distribute current among coils
-        base_currents = _make_base_currents(total_current, ncoils)
+        base_currents = _make_base_currents(total_current, ncoils, current_weights)
 
         # Create coils using symmetries
         coils = _coils_via_symmetries_compat(
@@ -469,6 +496,7 @@ def _optimize_coils_loop_impl(
                 numquadpoints=numquadpoints,
                 coil_width=coil_width,
                 regularization=regularization,
+                **_initialization_kwargs(kwargs),
             )
         total_current_reactor_scale = sum(
             [c.current.get_value() for c in coils_backup[:ncoils]]
@@ -478,6 +506,13 @@ def _optimize_coils_loop_impl(
         torque_threshold *= current_scale_factor
 
     base_curves = [coil.curve for coil in coils[:ncoils]]
+    initial_geometry_metrics = compute_initial_geometry_metrics(
+        s=s,
+        coils=coils,
+        base_curves=base_curves,
+        ncoils=ncoils,
+        initialization_metadata=kwargs.get("_initialization_metadata", {}),
+    )
 
     # Step 2: Create plotting surface
     s_plot, qphi, qtheta = _create_plotting_surface(s, surface_resolution, kwargs)
@@ -700,6 +735,7 @@ def _optimize_coils_loop_impl(
         pp_flags=pp_flags,
         B_initial=B_initial,
         structural_max_von_mises_Pa=structural_max_von_mises_Pa,
+        initial_geometry_metrics=initial_geometry_metrics,
     )
     coils_return, results_dict = _save_results_and_compute_metrics(
         s,
