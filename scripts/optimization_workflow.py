@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -66,7 +67,9 @@ def _run(command: list[str], *, print_command: bool) -> int:
     if print_command:
         print(" ".join(command))
         return 0
-    return subprocess.run(command, cwd=REPO, check=False).returncode
+    env = os.environ.copy()
+    env["STELLCOILBENCH_WORKFLOW_ENTRYPOINT"] = "scripts/optimization_workflow.py"
+    return subprocess.run(command, cwd=REPO, env=env, check=False).returncode
 
 
 def _board_command(args: argparse.Namespace, unknown: list[str]) -> list[str]:

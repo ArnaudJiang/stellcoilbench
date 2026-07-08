@@ -15,6 +15,7 @@ import importlib.util
 import itertools
 import json
 import math
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -1661,8 +1662,24 @@ def main() -> None:
     parser.add_argument("--no-early-stop", dest="early_stop", action="store_false")
     parser.add_argument("--no-skip-existing", action="store_true")
     parser.add_argument("--skip-existing", action="store_true")
+    parser.add_argument(
+        "--allow-legacy-direct",
+        action="store_true",
+        help="Bypass the repo-level workflow entrypoint guard for emergency recovery.",
+    )
     parser.add_argument("--yes", action="store_true", help="Required for launch.")
     args = parser.parse_args()
+
+    if (
+        not args.allow_legacy_direct
+        and os.environ.get("STELLCOILBENCH_WORKFLOW_ENTRYPOINT")
+        != "scripts/optimization_workflow.py"
+    ):
+        raise SystemExit(
+            "Direct use of experiments/wout_squid_eval_000030/workflow/experiment.py "
+            "is disabled for agents. Use `conda run -n stellcoilbench_vmec python "
+            "scripts/optimization_workflow.py <action> --board <board.yaml>`."
+        )
 
     board = _load_board(args.board)
     overrides = apply_overrides(board, args)

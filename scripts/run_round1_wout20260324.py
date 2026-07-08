@@ -8,6 +8,7 @@ continue to work while new experiments use the generic runner directly.
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -30,4 +31,16 @@ main = _impl.main
 
 
 if __name__ == "__main__":
+    if (
+        "--allow-legacy-direct" not in sys.argv
+        and os.environ.get("STELLCOILBENCH_WORKFLOW_ENTRYPOINT")
+        != "scripts/optimization_workflow.py"
+    ):
+        raise SystemExit(
+            "Direct use of scripts/run_round1_wout20260324.py is disabled for agents. "
+            "Use scripts/optimization_workflow.py for workflow operations, or "
+            "scripts/run_simsopt_batch.py --dry-run for runner debugging."
+        )
+    if "--allow-legacy-direct" in sys.argv:
+        sys.argv.remove("--allow-legacy-direct")
     main()

@@ -38,6 +38,9 @@ Each campaign should have:
 
 ## CLI
 
+Agent sessions must use `scripts/optimization_workflow.py` for these commands.
+Legacy experiment-specific workflow files are internal adapters only.
+
 Status:
 
 ```bash

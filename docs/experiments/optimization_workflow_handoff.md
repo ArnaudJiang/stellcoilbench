@@ -7,6 +7,10 @@ runner scripts directly.
 Data Twin collaboration records and SQLite indexing are documented in
 `docs/data_twin_workflow.md`.
 
+Agent-facing rules are persisted in the repository root `AGENTS.md`. If an
+agent is unsure which command to run, use `scripts/optimization_workflow.py`;
+do not copy launch commands from historical reports.
+
 ## Generic policy workflow
 
 Generic policy scans go through the Data Twin gated launcher:
@@ -59,10 +63,10 @@ Supported board actions are `plan`, `generate`, `preflight`, `register`,
 
 - `scripts/run_simsopt_batch.py` is the generic Simsopt batch runner.
 - `scripts/run_round1_wout20260324.py` is now a compatibility wrapper for old
-  imports and commands.
+  imports and commands. Agents must not call it directly.
 - `experiments/wout_squid_eval_000030/workflow/experiment.py` is now treated as
-  a legacy eval000030 board adapter; use `scripts/optimization_workflow.py`
-  instead of calling it directly.
+  a legacy eval000030 board adapter; it refuses direct execution unless an
+  emergency bypass is explicitly supplied.
 - Historical reports and Data Twin JSONL records still contain old command
   strings. Those should be preserved as provenance, not rewritten.
 - Shell launch scripts under `scripts/launch_round1_eval000030_*.sh` and
