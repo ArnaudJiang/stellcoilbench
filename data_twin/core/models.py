@@ -152,18 +152,58 @@ class EvaluationRecord(BaseRecord):
 class DecisionRecord(BaseRecord):
     decision_id: str
     campaign_id: str
-    case_id: str
+    case_id: str = "campaign"
     run_id: str = ""
     generation_index: int = 0
     decision: str = "manual_review"
+    decision_type: str = ""
     reason: str = ""
+    evidence: dict[str, Any] = field(default_factory=dict)
+    selected_runs: list[str] = field(default_factory=list)
+    rejected_runs: list[str] = field(default_factory=list)
     next_action: str = ""
+    next_policy_hint: str = ""
     parent_for_future_cases: bool = False
     created_at: str = field(default_factory=now_iso)
     decided_by: str = ""
     notes: str = ""
 
     required_fields: ClassVar[tuple[str, ...]] = ("decision_id", "campaign_id", "case_id", "decision")
+
+
+@dataclass
+class BriefRecord(BaseRecord):
+    brief_id: str
+    campaign_id: str
+    owner: str = ""
+    collaborators: list[str] = field(default_factory=list)
+    surface: str = ""
+    hypothesis: str = ""
+    stage: str = ""
+    policy_or_board: str = ""
+    expected_jobs: int | None = None
+    budget: dict[str, Any] = field(default_factory=dict)
+    success_criteria: dict[str, Any] = field(default_factory=dict)
+    known_risks: list[str] = field(default_factory=list)
+    reviewer: str = ""
+    created_at: str = field(default_factory=now_iso)
+    notes: str = ""
+
+    required_fields: ClassVar[tuple[str, ...]] = ("brief_id", "campaign_id")
+
+
+@dataclass
+class ReviewRecord(BaseRecord):
+    review_id: str
+    campaign_id: str
+    reviewer: str = ""
+    status: str = "comment"
+    note: str = ""
+    checklist: dict[str, Any] = field(default_factory=dict)
+    created_at: str = field(default_factory=now_iso)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    required_fields: ClassVar[tuple[str, ...]] = ("review_id", "campaign_id", "status")
 
 
 @dataclass
@@ -187,5 +227,7 @@ MODEL_BY_FILE = {
     "metrics.jsonl": MetricRecord,
     "evaluations.jsonl": EvaluationRecord,
     "decisions.jsonl": DecisionRecord,
+    "briefs.jsonl": BriefRecord,
+    "reviews.jsonl": ReviewRecord,
     "events.jsonl": EventRecord,
 }

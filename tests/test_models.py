@@ -1,5 +1,5 @@
 from data_twin.core.hashing import parameter_hash
-from data_twin.core.models import CaseRecord, RunRecord
+from data_twin.core.models import BriefRecord, CaseRecord, ReviewRecord, RunRecord
 
 
 def test_core_records_round_trip() -> None:
@@ -23,3 +23,23 @@ def test_run_record_preserves_failed_attempt() -> None:
 
     assert run.to_dict()["status"] == "failed"
     assert run.to_dict()["failure_reason"] == "runtime_error"
+
+
+def test_collaboration_records_round_trip() -> None:
+    brief = BriefRecord(
+        brief_id="brief_a",
+        campaign_id="camp",
+        owner="alice",
+        collaborators=["bob"],
+        hypothesis="length variance helps",
+    )
+    review = ReviewRecord(
+        review_id="review_a",
+        campaign_id="camp",
+        reviewer="bob",
+        status="approved",
+        note="preflight checked",
+    )
+
+    assert BriefRecord.from_dict(brief.to_dict()).collaborators == ["bob"]
+    assert ReviewRecord.from_dict(review.to_dict()).status == "approved"

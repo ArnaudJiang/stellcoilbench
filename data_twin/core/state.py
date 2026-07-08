@@ -13,12 +13,14 @@ from data_twin.storage.index import DEFAULT_ROOT, campaign_dir
 from data_twin.storage.jsonl_store import JsonlStore
 
 JSONL_FILES = (
+    "briefs.jsonl",
     "cases.jsonl",
     "runs.jsonl",
     "artifacts.jsonl",
     "metrics.jsonl",
     "evaluations.jsonl",
     "decisions.jsonl",
+    "reviews.jsonl",
     "events.jsonl",
 )
 

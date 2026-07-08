@@ -12,6 +12,7 @@ from data_twin.storage.jsonl_store import JsonlStore
 
 VALID_CASE_STATUS = {"draft", "proposed", "queued", "running", "completed", "failed", "evaluated", "ranked", "selected", "archived"}
 VALID_RUN_STATUS = {"pending", "running", "completed", "failed", "timeout", "cancelled", "missing_output", "unknown"}
+VALID_REVIEW_STATUS = {"comment", "approved", "needs_changes", "blocked"}
 
 
 def _missing_required(model: type, row: dict[str, Any]) -> list[str]:
@@ -34,6 +35,7 @@ def validate_campaign(root: Path | str, *, allow_duplicate_parameter_hash: bool 
     artifacts = records["artifacts.jsonl"]
     metrics = records["metrics.jsonl"]
     evaluations = records["evaluations.jsonl"]
+    reviews = records["reviews.jsonl"]
 
     for row in records["cases.jsonl"]:
         if row.get("status") not in VALID_CASE_STATUS:
@@ -54,6 +56,10 @@ def validate_campaign(root: Path | str, *, allow_duplicate_parameter_hash: bool 
                 errors.append(f"{table_name} references missing case_id {row.get('case_id')}")
             if row.get("run_id") not in runs:
                 errors.append(f"{table_name} references missing run_id {row.get('run_id')}")
+
+    for row in reviews:
+        if row.get("status") not in VALID_REVIEW_STATUS:
+            errors.append(f"review {row.get('review_id')} has invalid status {row.get('status')}")
 
     hashes = [row.get("parameter_hash") for row in records["cases.jsonl"] if row.get("parameter_hash")]
     if not allow_duplicate_parameter_hash:

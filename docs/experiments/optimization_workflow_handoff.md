@@ -4,6 +4,9 @@ Use `scripts/optimization_workflow.py` as the stable entry point for new
 optimization work. Do not launch long Simsopt scans by calling historical
 runner scripts directly.
 
+Data Twin collaboration records and SQLite indexing are documented in
+`docs/data_twin_workflow.md`.
+
 ## Generic policy workflow
 
 Generic policy scans go through the Data Twin gated launcher:
