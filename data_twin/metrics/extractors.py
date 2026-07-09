@@ -14,6 +14,8 @@ from data_twin.storage.jsonl_store import JsonlStore
 SUMMARY_MAP = {
     "avg_BdotN_over_B": "mean_abs_Bn",
     "max_BdotN_over_B": "max_abs_Bn",
+    "avg_BdotN_over_target_B": "mean_abs_Bn_over_target_B",
+    "max_BdotN_over_target_B": "max_abs_Bn_over_target_B",
     "final_total_length": "total_coil_length",
     "final_max_curvature": "max_curvature",
     "final_max_torsion": "max_torsion",

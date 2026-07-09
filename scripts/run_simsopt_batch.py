@@ -31,6 +31,7 @@ DEFAULT_POLICY = Path("policy/simsopt_batch_policy.yaml")
 
 TARGETS = {
     "avg_BdotN_over_B": 0.005,
+    "avg_BdotN_over_target_B": None,
     "final_min_cc_separation": 0.25,
     "final_min_cs_separation": 0.25,
     "final_max_curvature": 5.0,
@@ -56,6 +57,8 @@ CSV_FIELDS = [
     "max_iterations",
     "avg_BdotN_over_B",
     "max_BdotN_over_B",
+    "avg_BdotN_over_target_B",
+    "max_BdotN_over_target_B",
     "initial_R0",
     "initial_R1",
     "requested_major_radius_scale",
@@ -85,6 +88,7 @@ CSV_FIELDS = [
     "optimization_time",
     "walltime_sec",
     "target_avg_BdotN_over_B",
+    "target_avg_BdotN_over_target_B",
     "target_final_min_cc_separation",
     "target_final_min_cs_separation",
     "target_final_max_curvature",
@@ -767,8 +771,13 @@ def _focus_jobs(
 
 
 def _meets_targets(metrics: dict[str, Any], targets: dict[str, float]) -> bool:
+    field_metric = "avg_BdotN_over_B"
+    field_target = targets["avg_BdotN_over_B"]
+    if targets.get("avg_BdotN_over_target_B") is not None:
+        field_metric = "avg_BdotN_over_target_B"
+        field_target = targets["avg_BdotN_over_target_B"]
     return (
-        float(metrics.get("avg_BdotN_over_B", 999.0)) <= targets["avg_BdotN_over_B"]
+        float(metrics.get(field_metric, 999.0)) <= field_target
         and float(metrics.get("final_min_cc_separation", 0.0))
         >= targets["final_min_cc_separation"]
         and float(metrics.get("final_min_cs_separation", 0.0))
@@ -816,6 +825,8 @@ def _record_from_metrics(job: dict[str, Any], run_dir: Path, metrics: dict[str, 
         "max_iterations": optimizer.get("max_iterations", ""),
         "avg_BdotN_over_B": metrics.get("avg_BdotN_over_B"),
         "max_BdotN_over_B": metrics.get("max_BdotN_over_B"),
+        "avg_BdotN_over_target_B": metrics.get("avg_BdotN_over_target_B"),
+        "max_BdotN_over_target_B": metrics.get("max_BdotN_over_target_B"),
         "initial_R0": metrics.get("initial_R0"),
         "initial_R1": metrics.get("initial_R1"),
         "requested_major_radius_scale": metrics.get("requested_major_radius_scale"),
@@ -846,6 +857,9 @@ def _record_from_metrics(job: dict[str, Any], run_dir: Path, metrics: dict[str, 
         "optimization_time": metrics.get("optimization_time"),
         "walltime_sec": metrics.get("walltime_sec"),
         "target_avg_BdotN_over_B": targets["avg_BdotN_over_B"],
+        "target_avg_BdotN_over_target_B": targets.get(
+            "avg_BdotN_over_target_B", ""
+        ),
         "target_final_min_cc_separation": targets["final_min_cc_separation"],
         "target_final_min_cs_separation": targets["final_min_cs_separation"],
         "target_final_max_curvature": targets["final_max_curvature"],
@@ -878,6 +892,9 @@ def _failure_record(job: dict[str, Any], run_dir: Path, exc: BaseException) -> d
         "algorithm": optimizer.get("algorithm", ""),
         "max_iterations": optimizer.get("max_iterations", ""),
         "target_avg_BdotN_over_B": targets["avg_BdotN_over_B"],
+        "target_avg_BdotN_over_target_B": targets.get(
+            "avg_BdotN_over_target_B", ""
+        ),
         "target_final_min_cc_separation": targets["final_min_cc_separation"],
         "target_final_min_cs_separation": targets["final_min_cs_separation"],
         "target_final_max_curvature": targets["final_max_curvature"],

@@ -33,9 +33,11 @@ from data_twin.storage.sqlite_index import (
 
 GENERIC_LAUNCH = REPO / "scripts/workflow_launch.py"
 GENERIC_RECONCILE = REPO / "scripts/workflow_reconcile.py"
+GENERIC_INGEST = REPO / "scripts/workflow_ingest_results.py"
+GENERIC_SCREEN = REPO / "scripts/workflow_screen_results.py"
 EVAL000030_ADAPTER = REPO / "experiments/wout_squid_eval_000030/workflow/experiment.py"
 
-GENERIC_ACTIONS = {"prepare", "launch", "reconcile"}
+GENERIC_ACTIONS = {"prepare", "launch", "reconcile", "ingest", "screen"}
 DATA_TWIN_ACTIONS = {"index", "status", "review", "decide", "compare"}
 BOARD_ACTIONS = {
     "plan",
@@ -153,6 +155,54 @@ def _generic_reconcile_command(args: argparse.Namespace, unknown: list[str]) -> 
         "--state",
         args.state,
     ]
+    return command + unknown
+
+
+def _generic_ingest_command(args: argparse.Namespace, unknown: list[str]) -> list[str]:
+    missing = [
+        name
+        for name in ("campaign", "results_dir")
+        if getattr(args, name) is None
+    ]
+    if missing:
+        raise SystemExit(
+            "Generic ingest requires: " + ", ".join(f"--{name.replace('_', '-')}" for name in missing)
+        )
+    command = [
+        sys.executable,
+        str(GENERIC_INGEST.relative_to(REPO)),
+        "--campaign",
+        args.campaign,
+        "--results-dir",
+        str(args.results_dir),
+    ]
+    if args.expected is not None:
+        command.extend(["--expected", str(args.expected)])
+    return command + unknown
+
+
+def _generic_screen_command(args: argparse.Namespace, unknown: list[str]) -> list[str]:
+    missing = [
+        name
+        for name in ("campaign", "results_dir", "report")
+        if getattr(args, name) is None
+    ]
+    if missing:
+        raise SystemExit(
+            "Generic screen requires: " + ", ".join(f"--{name.replace('_', '-')}" for name in missing)
+        )
+    command = [
+        sys.executable,
+        str(GENERIC_SCREEN.relative_to(REPO)),
+        "--campaign",
+        args.campaign,
+        "--results-dir",
+        str(args.results_dir),
+        "--report",
+        str(args.report),
+    ]
+    for artifact in args.artifact or []:
+        command.extend(["--artifact", str(artifact)])
     return command + unknown
 
 
@@ -292,6 +342,10 @@ def build_command(args: argparse.Namespace, unknown: list[str]) -> list[str]:
         )
     if args.action == "reconcile":
         return _generic_reconcile_command(args, unknown)
+    if args.action == "ingest":
+        return _generic_ingest_command(args, unknown)
+    if args.action == "screen":
+        return _generic_screen_command(args, unknown)
     return _generic_launch_command(args, unknown)
 
 
@@ -314,6 +368,8 @@ def main() -> int:
     parser.add_argument("--campaign-config", type=Path)
     parser.add_argument("--policy", type=Path)
     parser.add_argument("--results-dir", type=Path)
+    parser.add_argument("--report", type=Path)
+    parser.add_argument("--artifact", type=Path, action="append")
     parser.add_argument("--backend", choices=["simsopt", "focus", "both"], default="simsopt")
     parser.add_argument("--expected", type=int)
     parser.add_argument("--surface-resolution", type=int, default=64)

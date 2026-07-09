@@ -81,6 +81,45 @@ def test_record_uses_job_targets_for_meets_targets() -> None:
     assert record["meets_targets"] is True
 
 
+def test_target_b_normalized_metric_can_drive_meets_targets() -> None:
+    targets = {
+        "avg_BdotN_over_B": 0.02,
+        "avg_BdotN_over_target_B": 0.015,
+        "final_min_cc_separation": 0.18,
+        "final_min_cs_separation": 0.18,
+        "final_max_curvature": 5.0,
+        "final_max_torsion": 15.0,
+    }
+    record = run_simsopt_batch._record_from_metrics(
+        {
+            "run_id": "target_b_normalized_probe",
+            "backend": "simsopt",
+            "targets": targets,
+            "case": {
+                "optimizer_params": {"algorithm": "L-BFGS-B", "max_iterations": 1},
+                "coils_params": {"order": 6},
+                "experiment_metadata": {},
+                "random_seed": 1,
+            },
+        },
+        Path("unused"),
+        {
+            "avg_BdotN_over_B": 0.019,
+            "avg_BdotN_over_target_B": 0.016,
+            "max_BdotN_over_target_B": 0.05,
+            "final_min_cc_separation": 0.19,
+            "final_min_cs_separation": 0.19,
+            "final_max_curvature": 4.9,
+            "final_max_torsion": 12.0,
+        },
+    )
+
+    assert record["avg_BdotN_over_target_B"] == 0.016
+    assert record["max_BdotN_over_target_B"] == 0.05
+    assert record["target_avg_BdotN_over_target_B"] == 0.015
+    assert record["meets_targets"] is False
+
+
 def test_failure_record_preserves_job_targets() -> None:
     targets = {
         "avg_BdotN_over_B": 0.02,

@@ -14,8 +14,10 @@ METRIC_DEFINITIONS: dict[str, str] = {
     # B-field related
     "final_squared_flux": r"Squared flux objective $f_B = \int_{S} (\mathbf{B} \cdot \mathbf{n} - B_\text{target})^2 dS$ on plasma surface ($\text{T}^2 \text{m}^2$). When virtual casing is used, $B_\text{target} = B_\text{external}^\text{normal}$; otherwise $B_\text{target} = 0$.",
     "final_normalized_squared_flux": r"Squared flux objective $f_B = \int_{S} (\mathbf{B} \cdot \mathbf{n} - B_\text{target})^2 dS$ on plasma surface ($\text{T}^2 \text{m}^2$). Alias for final_squared_flux.",
-    "max_BdotN_over_B": r"Maximum normalized normal field component $\max(B_n)$ where $B_n = \frac{|\mathbf{B} \cdot \mathbf{n}|}{|\mathbf{B}|}$ (dimensionless)",
-    "avg_BdotN_over_B": r"Average normalized normal field component $\bar{B}_n = \frac{\langle |\mathbf{B} \cdot \mathbf{n} - B_\text{target}| \rangle}{\langle |\mathbf{B}| \rangle}$ (dimensionless). When virtual casing is used, $B_\text{target} = B_\text{external}^\text{normal}$; otherwise $B_\text{target} = 0$.",
+    "max_BdotN_over_B": r"Maximum normalized normal field component $\max(B_n)$ where $B_n = \frac{|\mathbf{B}_\text{coil} \cdot \mathbf{n} - B_\text{target}|}{|\mathbf{B}_\text{coil}|}$ (dimensionless)",
+    "avg_BdotN_over_B": r"Average normalized normal field component $\bar{B}_n = \frac{\langle |\mathbf{B}_\text{coil} \cdot \mathbf{n} - B_\text{target}| \rangle}{\langle |\mathbf{B}_\text{coil}| \rangle}$ (dimensionless). When virtual casing is used, $B_\text{target} = B_\text{external}^\text{normal}$; otherwise $B_\text{target} = 0$.",
+    "max_BdotN_over_target_B": r"Maximum normal-field residual normalized by reference field $\max \frac{|\mathbf{B}_\text{coil} \cdot \mathbf{n} - B_\text{target}|}{B_0}$, where $B_0$ is target_B (dimensionless).",
+    "avg_BdotN_over_target_B": r"Average normal-field residual normalized by reference field $\frac{\langle |\mathbf{B}_\text{coil} \cdot \mathbf{n} - B_\text{target}| \rangle}{B_0}$, where $B_0$ is target_B (dimensionless).",
     # Curvature
     "final_average_curvature": r"Mean curvature $\bar{\kappa} = \frac{1}{N} \sum_{i=1}^{N} \kappa_i$ over all coils, where $\kappa_i = |\mathbf{r}''(s)|$ ($\text{m}^{-1}$)",
     "final_max_curvature": r"Maximum curvature $\kappa_\text{max}$ across all coils ($\text{m}^{-1}$)",
@@ -86,6 +88,28 @@ METRIC_DETAILED_DEFINITIONS: dict[str, dict[str, Any]] = {
         ],
         "units": "dimensionless",
         "notes": "Lower values indicate better field quality.",
+    },
+    "avg_BdotN_over_target_B": {
+        "title": "Average Normal Field Residual Over Target Field",
+        "symbol": r":math:`\bar{B}_{n,0}`",
+        "description": "Average absolute normal-field residual normalized by the reference target field magnitude.",
+        "math_forms": [
+            r"\bar{B}_{n,0} = \frac{\langle |\mathbf{B}_\text{coil} \cdot \mathbf{n} - B_\text{target}| \rangle}{B_0}",
+        ],
+        "where": r"where :math:`B_0` is target_B and :math:`B_\text{target}` is the virtual-casing normal field target when enabled.",
+        "units": "dimensionless",
+        "notes": "Useful for comparing field residuals at a fixed device reference field.",
+    },
+    "max_BdotN_over_target_B": {
+        "title": "Maximum Normal Field Residual Over Target Field",
+        "symbol": r":math:`\max(B_{n,0})`",
+        "description": "Maximum absolute normal-field residual normalized by the reference target field magnitude.",
+        "math_forms": [
+            r"\max(B_{n,0}) = \max_{\mathbf{s} \in S} \frac{|\mathbf{B}_\text{coil} \cdot \mathbf{n} - B_\text{target}|}{B_0}",
+        ],
+        "where": r"where :math:`B_0` is target_B and :math:`B_\text{target}` is the virtual-casing normal field target when enabled.",
+        "units": "dimensionless",
+        "notes": "Lower values indicate better field quality at the device reference field.",
     },
     "coil_order": {
         "title": "Fourier Order",

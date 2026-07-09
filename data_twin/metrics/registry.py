@@ -1,6 +1,14 @@
 """Metric registry for MVP extraction and availability reports."""
 
-PHYSICS_METRICS = ["final_squared_flux", "mean_abs_Bn", "max_abs_Bn", "rms_Bn", "final_objective"]
+PHYSICS_METRICS = [
+    "final_squared_flux",
+    "mean_abs_Bn",
+    "max_abs_Bn",
+    "mean_abs_Bn_over_target_B",
+    "max_abs_Bn_over_target_B",
+    "rms_Bn",
+    "final_objective",
+]
 GEOMETRY_METRICS = [
     "total_coil_length",
     "mean_coil_length",

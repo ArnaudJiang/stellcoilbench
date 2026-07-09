@@ -70,6 +70,8 @@ def _build_optimization_results_dict(
     max_torque: list,
     avg_BdotN_over_B: float,
     max_BdotN_overB: float,
+    avg_BdotN_over_target_B: float,
+    max_BdotN_over_target_B: float,
     coils_linked_to_surface: bool,
     lag_mul: Any,
     out_dir: Path,
@@ -104,7 +106,9 @@ def _build_optimization_results_dict(
     max_force, max_torque : list
         Per-coil max force and torque.
     avg_BdotN_over_B, max_BdotN_overB : float
-        B_N/|B| metrics.
+        B_N metrics normalized by coil-field magnitude.
+    avg_BdotN_over_target_B, max_BdotN_over_target_B : float
+        B_N metrics normalized by target/reference field magnitude.
     coils_linked_to_surface : bool
         Whether coils encircle plasma.
     lag_mul : Any
@@ -202,6 +206,8 @@ def _build_optimization_results_dict(
         else 0.0,
         "avg_BdotN_over_B": avg_BdotN_over_B,
         "max_BdotN_over_B": max_BdotN_overB,
+        "avg_BdotN_over_target_B": avg_BdotN_over_target_B,
+        "max_BdotN_over_target_B": max_BdotN_over_target_B,
         "lagrange_multipliers": lag_mul,
         "output_directory": str(out_dir),
         "flux_threshold": th.get("flux_threshold"),

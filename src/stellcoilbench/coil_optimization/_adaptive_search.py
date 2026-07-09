@@ -116,11 +116,12 @@ def _make_base_currents(
     ncoils: int,
     current_weights: list[float] | tuple[float, ...] | None = None,
 ) -> list:
-    """Create conditioned base currents for *ncoils* coils.
+    """Create fixed conditioned base currents for *ncoils* coils.
 
     Uses the ``Current(I * CURRENT_SCALING_FACTOR) * (1 / CURRENT_SCALING_FACTOR)``
-    trick to improve numerical conditioning of the simsopt optimiser, then
-    fixes the total-current constraint so that the last current is derived.
+    trick to improve numerical conditioning of the simsopt optimiser.  Each
+    base-coil current is fixed, so the optimizer changes coil geometry only by
+    default instead of using unequal coil currents to reduce the field error.
 
     Parameters
     ----------
@@ -138,13 +139,11 @@ def _make_base_currents(
 
     inv_factor = 1.0 / CURRENT_SCALING_FACTOR
     weights = _normalize_current_weights(current_weights, ncoils)
-    base = [
-        Current(total_current * weights[idx] * CURRENT_SCALING_FACTOR) * inv_factor
-        for idx in range(ncoils - 1)
-    ]
-    total_obj = Current(total_current)
-    total_obj.fix_all()
-    base.append(total_obj - sum(base))
+    base = []
+    for weight in weights:
+        current = Current(total_current * weight * CURRENT_SCALING_FACTOR)
+        current.fix_all()
+        base.append(current * inv_factor)
     return base
 
 

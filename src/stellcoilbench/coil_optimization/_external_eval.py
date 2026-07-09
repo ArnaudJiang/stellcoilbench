@@ -338,9 +338,17 @@ def _compute_optimization_metrics(
         absBn = np.abs(BdotN_coils)
 
     abs_B = bs.AbsB().reshape((nphi, ntheta))
-    avg_BdotN_over_B = np.mean(absBn) / np.mean(abs_B) if np.mean(abs_B) > 0 else 0.0
+    mean_absBn = float(np.mean(absBn))
+    avg_BdotN_over_B = mean_absBn / np.mean(abs_B) if np.mean(abs_B) > 0 else 0.0
     abs_B_safe = np.where(abs_B > SAFE_ABS_B_FLOOR, abs_B, SAFE_ABS_B_FLOOR)
     max_BdotN_overB = np.max(absBn / abs_B_safe) if np.any(abs_B > 0) else 0.0
+    target_B = float(kwargs.get("target_B", 0.0) or 0.0)
+    if target_B > 0:
+        avg_BdotN_over_target_B = mean_absBn / target_B
+        max_BdotN_over_target_B = float(np.max(absBn)) / target_B
+    else:
+        avg_BdotN_over_target_B = 0.0
+        max_BdotN_over_target_B = 0.0
 
     coils_linked_to_surface = _check_coils_linked_to_surface(s, base_curves)
 
@@ -350,6 +358,8 @@ def _compute_optimization_metrics(
         "max_torque": max_torque,
         "avg_BdotN_over_B": avg_BdotN_over_B,
         "max_BdotN_overB": max_BdotN_overB,
+        "avg_BdotN_over_target_B": avg_BdotN_over_target_B,
+        "max_BdotN_over_target_B": max_BdotN_over_target_B,
         "coils_linked_to_surface": coils_linked_to_surface,
         "total_current_final": total_current_final,
     }
@@ -480,6 +490,12 @@ def _build_external_coil_metrics(
         "coils_linked_to_surface": opt_metrics["coils_linked_to_surface"],
         "avg_BdotN_over_B": float(opt_metrics["avg_BdotN_over_B"]),
         "max_BdotN_over_B": float(opt_metrics["max_BdotN_overB"]),
+        "avg_BdotN_over_target_B": float(
+            opt_metrics.get("avg_BdotN_over_target_B", 0.0)
+        ),
+        "max_BdotN_over_target_B": float(
+            opt_metrics.get("max_BdotN_over_target_B", 0.0)
+        ),
         "final_total_length": float(coil_metrics["final_total_length"]),
         "final_arclength_variation": float(coil_metrics["final_arclength_variation"]),
         "final_mean_squared_curvature": float(
@@ -590,7 +606,7 @@ def evaluate_external_coils(
     Jlink = LinkingNumber(curves, downsample=2)
 
     opt_metrics = _compute_optimization_metrics(
-        bs, coils, base_curves, ncoils, s, s_plot, 64, 64, {}
+        bs, coils, base_curves, ncoils, s, s_plot, 64, 64, {"target_B": target_B}
     )
     coil_metrics = _compute_coil_subset_metrics(base_coils, base_curves, coils, s, {})
 

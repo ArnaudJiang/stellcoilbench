@@ -230,6 +230,8 @@ def _compute_final_metrics(
     max_torque = metrics["max_torque"]
     avg_BdotN_over_B = metrics["avg_BdotN_over_B"]
     max_BdotN_overB = metrics["max_BdotN_overB"]
+    avg_BdotN_over_target_B = metrics.get("avg_BdotN_over_target_B", 0.0)
+    max_BdotN_over_target_B = metrics.get("max_BdotN_over_target_B", 0.0)
     coils_linked_to_surface = metrics["coils_linked_to_surface"]
     total_current_final = metrics["total_current_final"]
 
@@ -270,6 +272,8 @@ def _compute_final_metrics(
         max_torque=max_torque,
         avg_BdotN_over_B=avg_BdotN_over_B,
         max_BdotN_overB=max_BdotN_overB,
+        avg_BdotN_over_target_B=avg_BdotN_over_target_B,
+        max_BdotN_over_target_B=max_BdotN_over_target_B,
         coils_linked_to_surface=coils_linked_to_surface,
         lag_mul=outcome.lag_mul,
         out_dir=out_dir,
@@ -341,6 +345,8 @@ def _save_results_and_compute_metrics(
         caller and the assembled results dictionary.
     """
     save_metrics_start = time.perf_counter()
+    metric_kwargs = dict(kwargs)
+    metric_kwargs["target_B"] = outcome.target_B
 
     metrics, coils_return = _save_vtk_outputs(
         s,
@@ -352,7 +358,7 @@ def _save_results_and_compute_metrics(
         outcome.ncoils,
         bs,
         out_dir,
-        kwargs,
+        metric_kwargs,
     )
 
     save_metrics_time = time.perf_counter() - save_metrics_start

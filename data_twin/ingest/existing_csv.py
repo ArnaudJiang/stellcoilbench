@@ -16,8 +16,10 @@ from data_twin.storage.jsonl_store import JsonlStore
 FIELD_MAP = {
     "avg_Bn_over_B": "mean_abs_Bn",
     "avg_BdotN_over_B": "mean_abs_Bn",
+    "avg_BdotN_over_target_B": "mean_abs_Bn_over_target_B",
     "max_Bn_over_B": "max_abs_Bn",
     "max_BdotN_over_B": "max_abs_Bn",
+    "max_BdotN_over_target_B": "max_abs_Bn_over_target_B",
     "total_length": "total_coil_length",
     "max_length": "max_coil_length",
     "cc": "min_coil_coil_distance",
