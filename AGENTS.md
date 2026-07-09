@@ -42,6 +42,14 @@ or result ingestion.
   `scripts/optimization_workflow.py prepare` and `launch`.
 - Every non-dry-run optimization launch must have a Data Twin campaign and must
   pass the workflow gate before execution.
+- Physical engineering thresholds written in board files are device-scale
+  values only when they use the `*_threshold_device` keys. Plain keys such as
+  `cc_threshold`, `cs_threshold`, `length_threshold`, and
+  `curvature_threshold` are reactor-scale inputs and will be rescaled by the
+  optimizer.
+- For virtual-casing or explicit `target_B` campaigns, record and report both
+  `avg_BdotN_over_B` and `avg_BdotN_over_target_B`; use the target-B-normalized
+  metric as the preferred field-quality comparison when the board declares it.
 - Use Data Twin collaboration commands for handoff and review:
   `index rebuild`, `status`, `review`, `decide`, and `compare`.
 - JSONL files under `experiments/data_twin/<campaign>/` are the source of truth.
@@ -109,7 +117,10 @@ Expected lifecycle states are:
 
 Use this metric vocabulary consistently across all stages:
 
-- Field metric: `avg_BdotN_over_B`, lower is better.
+- Field metric: `avg_BdotN_over_B`, lower is better. For campaigns with
+  explicit `target_B` or virtual casing, also require
+  `avg_BdotN_over_target_B` in records and reports, and prefer it for
+  cross-campaign field-quality comparison.
 - Coil-coil clearance: `final_min_cc_separation`; target bands are exploratory `>=0.20`, promising `>=0.24`, strict `>=0.25`, and industrial push `>=0.30`.
 - Coil-surface clearance: `final_min_cs_separation`; target bands are exploratory `>=0.20`, promising `>=0.24`, strict `>=0.25`, and industrial push `>=0.30`.
 - Geometry: prefer `max_curvature <= 5.0`, `mean_squared_curvature <= 5.0`, `arclength_variation <= 0.5`, `max_torsion <= 7.0`, and `length_ratio <= 1.25` unless a stage explicitly relaxes one item for exploration.

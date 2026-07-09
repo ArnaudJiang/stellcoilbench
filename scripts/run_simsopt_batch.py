@@ -345,7 +345,7 @@ def _base_case(
     if common.get("virtual_casing") is not None:
         surface_params["virtual_casing"] = bool(common["virtual_casing"])
 
-    return {
+    case = {
         "description": common.get("description", "Policy-defined Simsopt batch scan"),
         "surface_params": surface_params,
         "coils_params": {
@@ -378,6 +378,22 @@ def _base_case(
             "run_simple": False,
         },
     }
+
+    for threshold_key in (
+        "length_threshold_device",
+        "cc_threshold_device",
+        "cs_threshold_device",
+        "curvature_threshold_device",
+        "torsion_threshold_device",
+        "msc_threshold_device",
+        "arclength_variation_threshold_device",
+        "length_variance_threshold_device",
+        "force_threshold_device",
+        "torque_threshold_device",
+    ):
+        if threshold_key in thresholds and thresholds[threshold_key] is not None:
+            case["coil_objective_terms"][threshold_key] = float(thresholds[threshold_key])
+    return case
 
 
 def _simsopt_jobs(
@@ -792,6 +808,8 @@ def _meets_targets(metrics: dict[str, Any], targets: dict[str, float]) -> bool:
 def _record_from_metrics(job: dict[str, Any], run_dir: Path, metrics: dict[str, Any]) -> dict[str, Any]:
     case = job["case"]
     optimizer = case.get("optimizer_params", {})
+    surface_params = case.get("surface_params", {})
+    coils_params = case.get("coils_params", {})
     metadata = case.get("experiment_metadata", {})
     lengths = [float(x) for x in metrics.get("final_length_per_coil", []) or []]
     max_length = max(lengths) if lengths else None
@@ -820,9 +838,17 @@ def _record_from_metrics(job: dict[str, Any], run_dir: Path, metrics: dict[str, 
         "geometry_weight_scale": metadata.get("geometry_weight_scale", ""),
         "policy_label": metadata.get("policy_label", ""),
         "random_seed": case.get("random_seed"),
-        "order": case.get("coils_params", {}).get("order"),
+        "order": coils_params.get("order"),
         "algorithm": optimizer.get("algorithm", ""),
         "max_iterations": optimizer.get("max_iterations", ""),
+        "target_B_field": metrics.get("target_B_field", surface_params.get("target_B")),
+        "virtual_casing": surface_params.get("virtual_casing"),
+        "total_current_before": metrics.get("total_current_before")
+        or metrics.get("total_current"),
+        "total_current_after": metrics.get("total_current_after")
+        or metrics.get("total_current_final"),
+        "requested_current_weights": metrics.get("requested_current_weights")
+        or coils_params.get("current_weights"),
         "avg_BdotN_over_B": metrics.get("avg_BdotN_over_B"),
         "max_BdotN_over_B": metrics.get("max_BdotN_over_B"),
         "avg_BdotN_over_target_B": metrics.get("avg_BdotN_over_target_B"),
@@ -872,6 +898,8 @@ def _record_from_metrics(job: dict[str, Any], run_dir: Path, metrics: dict[str, 
 def _failure_record(job: dict[str, Any], run_dir: Path, exc: BaseException) -> dict[str, Any]:
     case = job["case"]
     optimizer = case.get("optimizer_params", {})
+    surface_params = case.get("surface_params", {})
+    coils_params = case.get("coils_params", {})
     metadata = case.get("experiment_metadata", {})
     targets = job.get("targets") or TARGETS
     return {
@@ -888,9 +916,12 @@ def _failure_record(job: dict[str, Any], run_dir: Path, exc: BaseException) -> d
         "geometry_weight_scale": metadata.get("geometry_weight_scale", ""),
         "policy_label": metadata.get("policy_label", ""),
         "random_seed": case.get("random_seed"),
-        "order": case.get("coils_params", {}).get("order"),
+        "order": coils_params.get("order"),
         "algorithm": optimizer.get("algorithm", ""),
         "max_iterations": optimizer.get("max_iterations", ""),
+        "target_B_field": surface_params.get("target_B"),
+        "virtual_casing": surface_params.get("virtual_casing"),
+        "requested_current_weights": coils_params.get("current_weights"),
         "target_avg_BdotN_over_B": targets["avg_BdotN_over_B"],
         "target_avg_BdotN_over_target_B": targets.get(
             "avg_BdotN_over_target_B", ""

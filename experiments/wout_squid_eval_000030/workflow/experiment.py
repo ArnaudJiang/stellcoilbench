@@ -398,16 +398,16 @@ def _build_policy_and_rows(board: dict[str, Any]) -> tuple[dict[str, Any], list[
         "coil_quadpoints": int(board["resolution"]["coil_quadpoints"]),
         "plot_upsample_factor": int(board["resolution"].get("plot_upsample_factor", 1)),
         "thresholds": {
-            "length_threshold": float(thresholds["length_threshold_device"]),
-            "cc_threshold": float(thresholds["cc_threshold_device"]),
-            "cs_threshold": float(thresholds["cs_threshold_device"]),
-            "curvature_threshold": float(thresholds["curvature_threshold_device"]),
-            "torsion_threshold": float(thresholds["torsion_threshold_device"]),
-            "msc_threshold": float(thresholds["msc_threshold_device"]),
-            "arclength_variation_threshold": float(
+            "length_threshold_device": float(thresholds["length_threshold_device"]),
+            "cc_threshold_device": float(thresholds["cc_threshold_device"]),
+            "cs_threshold_device": float(thresholds["cs_threshold_device"]),
+            "curvature_threshold_device": float(thresholds["curvature_threshold_device"]),
+            "torsion_threshold_device": float(thresholds["torsion_threshold_device"]),
+            "msc_threshold_device": float(thresholds["msc_threshold_device"]),
+            "arclength_variation_threshold_device": float(
                 thresholds["arclength_variation_threshold_device"]
             ),
-            "length_variance_threshold": float(
+            "length_variance_threshold_device": float(
                 thresholds.get("length_variance_threshold_device", 0.0)
             ),
         },
@@ -1072,7 +1072,7 @@ def monitor(board: dict[str, Any]) -> dict[str, Any]:
         record_by_run.values(),
         key=lambda r: (
             r.get("meets_targets") is not True,
-            float(r.get("avg_BdotN_over_B") or 999),
+            float(r.get("avg_BdotN_over_target_B") or r.get("avg_BdotN_over_B") or 999),
             -float(r.get("final_min_cs_separation") or 0),
         ),
     )[:10]
@@ -1086,6 +1086,7 @@ def monitor(board: dict[str, Any]) -> dict[str, Any]:
             {
                 "run_id": row.get("run_id"),
                 "avg_BdotN_over_B": row.get("avg_BdotN_over_B"),
+                "avg_BdotN_over_target_B": row.get("avg_BdotN_over_target_B"),
                 "cc": row.get("final_min_cc_separation"),
                 "cs": row.get("final_min_cs_separation"),
                 "max_curvature": row.get("final_max_curvature"),
@@ -1100,6 +1101,8 @@ def monitor(board: dict[str, Any]) -> dict[str, Any]:
 METRIC_FIELDS = {
     "avg_BdotN_over_B": ("physics", ""),
     "max_BdotN_over_B": ("physics", ""),
+    "avg_BdotN_over_target_B": ("physics", ""),
+    "max_BdotN_over_target_B": ("physics", ""),
     "final_min_cc_separation": ("geometry", "m"),
     "final_min_cs_separation": ("geometry", "m"),
     "final_total_length": ("geometry", "m"),

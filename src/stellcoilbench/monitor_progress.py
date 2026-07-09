@@ -130,6 +130,7 @@ def summarize_progress(
             failed_count += 1
 
         avg = _safe_float(_metric(record, "avg_BdotN_over_B", "avg_Bn_over_B"))
+        avg_target = _safe_float(_metric(record, "avg_BdotN_over_target_B"))
         cc = _safe_float(_metric(record, "final_min_cc_separation", "min_cc"))
         cs = _safe_float(_metric(record, "final_min_cs_separation", "min_cs"))
         curvature = _safe_float(
@@ -166,6 +167,7 @@ def summarize_progress(
         row = {
             "run_id": run_id,
             "avg_BdotN_over_B": avg,
+            "avg_BdotN_over_target_B": avg_target,
             "cc": cc,
             "cs": cs,
             "max_curvature": curvature,
@@ -179,7 +181,9 @@ def summarize_progress(
             hard_feasible.append(row)
 
     def sort_key(row: dict[str, Any]) -> tuple[bool, float]:
-        avg = row.get("avg_BdotN_over_B")
+        avg = row.get("avg_BdotN_over_target_B")
+        if avg is None:
+            avg = row.get("avg_BdotN_over_B")
         return avg is None, float(avg) if avg is not None else 999.0
 
     return ProgressSummary(
@@ -238,6 +242,7 @@ def format_progress(summary: ProgressSummary) -> str:
         lines.append(
             "Best hard: "
             f"{row['run_id']} avg={_fmt_float(row['avg_BdotN_over_B'])} "
+            f"avgT={_fmt_float(row['avg_BdotN_over_target_B'])} "
             f"cc={_fmt_float(row['cc'], 4)} cs={_fmt_float(row['cs'], 4)} "
             f"curv={_fmt_float(row['max_curvature'], 4)} "
             f"tors={_fmt_float(row['max_torsion'], 4)} "
@@ -248,6 +253,7 @@ def format_progress(summary: ProgressSummary) -> str:
         lines.append(
             "Best overall: "
             f"{row['run_id']} avg={_fmt_float(row['avg_BdotN_over_B'])} "
+            f"avgT={_fmt_float(row['avg_BdotN_over_target_B'])} "
             f"cc={_fmt_float(row['cc'], 4)} cs={_fmt_float(row['cs'], 4)} "
             f"curv={_fmt_float(row['max_curvature'], 4)}"
         )
